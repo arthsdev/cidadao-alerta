@@ -34,6 +34,7 @@ public class Usuario {
     @Column(nullable = false)
     boolean ativo = true;
 
+    @Enumerated(EnumType.STRING)
     private Role papel = Role.ROLE_USER;
 
 }

@@ -1,12 +1,16 @@
 package com.artheus.cidadaoalerta.controller;
 
+import com.artheus.cidadaoalerta.domain.Usuario;
 import com.artheus.cidadaoalerta.dto.AtualizacaoUsuario;
 import com.artheus.cidadaoalerta.dto.CadastroUsuario;
 import com.artheus.cidadaoalerta.dto.DetalhamentoUsuario;
+import com.artheus.cidadaoalerta.mapper.UsuarioMapper;
+import com.artheus.cidadaoalerta.security.UsuarioDetails;
 import com.artheus.cidadaoalerta.service.UsuarioService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -16,9 +20,10 @@ import java.util.List;
 @RestController
 @RequestMapping("/usuarios")
 @RequiredArgsConstructor
-public class UserController {
+public class UsuarioController {
 
     private final UsuarioService usuarioService;
+    private final UsuarioMapper usuarioMapper;
 
     @PostMapping
     public ResponseEntity<DetalhamentoUsuario> cadastrarUsuario(
@@ -60,6 +65,15 @@ public class UserController {
 
         var usuarioAtualizado = usuarioService.atualizarUsuario(id, dto);
         return ResponseEntity.ok(usuarioAtualizado);
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<DetalhamentoUsuario> buscarUsuarioLogado(Authentication authentication) {
+        UsuarioDetails usuarioDetails = (UsuarioDetails) authentication.getPrincipal();
+        Usuario usuario = usuarioDetails.getUsuario();
+
+        DetalhamentoUsuario dto = usuarioMapper.toDetalhamentoDto(usuario);
+        return ResponseEntity.ok(dto);
     }
 
 }
