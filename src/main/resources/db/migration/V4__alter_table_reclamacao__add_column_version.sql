@@ -1,0 +1,2 @@
+ALTER TABLE reclamacao
+ADD COLUMN version BIGINT DEFAULT 0;

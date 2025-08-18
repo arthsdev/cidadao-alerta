@@ -1,6 +1,6 @@
 package com.artheus.cidadaoalerta.dto;
 
-import com.artheus.cidadaoalerta.domain.enums.Role;
+import com.artheus.cidadaoalerta.model.enums.Role;
 
 public record DetalhamentoUsuario(
         Long id,

@@ -1,6 +1,6 @@
 package com.artheus.cidadaoalerta.repository;
 
-import com.artheus.cidadaoalerta.domain.Usuario;
+import com.artheus.cidadaoalerta.model.Usuario;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

@@ -1,6 +1,6 @@
 package com.artheus.cidadaoalerta.security;
 
-import com.artheus.cidadaoalerta.domain.Usuario;
+import com.artheus.cidadaoalerta.model.Usuario;
 import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;

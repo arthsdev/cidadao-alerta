@@ -1,7 +1,7 @@
 package com.artheus.cidadaoalerta.service;
 
-import com.artheus.cidadaoalerta.domain.Usuario;
-import com.artheus.cidadaoalerta.domain.enums.Role;
+import com.artheus.cidadaoalerta.model.Usuario;
+import com.artheus.cidadaoalerta.model.enums.Role;
 import com.artheus.cidadaoalerta.dto.AtualizacaoUsuario;
 import com.artheus.cidadaoalerta.dto.CadastroUsuario;
 import com.artheus.cidadaoalerta.dto.DetalhamentoUsuario;

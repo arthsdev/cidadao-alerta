@@ -1,6 +1,6 @@
 package com.artheus.cidadaoalerta.mapper;
 
-import com.artheus.cidadaoalerta.domain.Usuario;
+import com.artheus.cidadaoalerta.model.Usuario;
 import com.artheus.cidadaoalerta.dto.AtualizacaoUsuario;
 import com.artheus.cidadaoalerta.dto.CadastroUsuario;
 import com.artheus.cidadaoalerta.dto.DetalhamentoUsuario;

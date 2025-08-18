@@ -1,12 +1,15 @@
-package com.artheus.cidadaoalerta.domain;
+package com.artheus.cidadaoalerta.model;
 
-import com.artheus.cidadaoalerta.domain.enums.Role;
+import com.artheus.cidadaoalerta.model.enums.Role;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "usuario")
@@ -36,5 +39,8 @@ public class Usuario {
 
     @Enumerated(EnumType.STRING)
     private Role papel = Role.ROLE_USER;
+
+    @OneToMany(mappedBy = "usuario", cascade = CascadeType.ALL)
+    private List<Reclamacao> reclamacoes = new ArrayList<>();
 
 }

@@ -1,4 +1,4 @@
-package com.artheus.cidadaoalerta.domain.enums;
+package com.artheus.cidadaoalerta.model.enums;
 
 public enum Role {
     ROLE_USER,
