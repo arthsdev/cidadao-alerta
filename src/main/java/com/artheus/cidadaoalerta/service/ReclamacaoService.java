@@ -10,11 +10,15 @@ import com.artheus.cidadaoalerta.repository.ReclamacaoRepository;
 import com.artheus.cidadaoalerta.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -25,18 +29,52 @@ public class ReclamacaoService {
     private final ReclamacaoMapper reclamacaoMapper;
     private final ReclamacaoRepository reclamacaoRepository;
 
+    /**
+     * Cadastra uma nova reclamação para um usuário.
+     * @param cadastroDto dados da reclamação
+     * @return DTO detalhado da reclamação cadastrada
+     * @throws ResponseStatusException se o usuário não for encontrado
+     */
     public DetalhamentoReclamacao cadastrarReclamacao(CadastroReclamacao cadastroDto) {
         Usuario usuario = usuarioRepository.findById(cadastroDto.usuarioId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "Usuário não encontrado com ID: " + cadastroDto.usuarioId()));
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Usuário não encontrado com ID: " + cadastroDto.usuarioId()
+                ));
 
+        // Verifica se já existe uma reclamação ativa com o mesmo título para este usuário
+        Optional<Reclamacao> reclamacaoExistente = reclamacaoRepository
+                .findByTituloAndUsuarioIdAndAtivoTrue(cadastroDto.titulo(), usuario.getId());
+
+        // Se a reclamação já existir (ativa), retorna um erro
+        if (reclamacaoExistente.isPresent()) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Já existe uma reclamação ativa com esse título para este usuário."
+            );
+        }
+
+        // Se não existir, prossegue com a criação
         Reclamacao reclamacao = reclamacaoMapper.toEntity(cadastroDto, usuario);
-
-        Reclamacao reclamacaoSalva = reclamacaoRepository.save(reclamacao);
-
-        return reclamacaoMapper.toDetalhamentoDto(reclamacaoSalva);
+        return reclamacaoMapper.toDetalhamentoDto(reclamacaoRepository.save(reclamacao));
     }
 
+
+    private void validarReclamacaoDuplicada(String titulo, Long usuarioId) {
+        Optional<Reclamacao> reclamacaoExistente = reclamacaoRepository
+                .findByTituloAndUsuarioIdAndAtivoTrue(titulo, usuarioId);
+
+        if (reclamacaoExistente.isPresent()) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Já existe uma reclamação ativa com esse título para este usuário."
+            );
+        }
+    }
+
+    /**
+     * Retorna todas as reclamações ativas.
+     */
     public List<DetalhamentoReclamacao> listarReclamacoes() {
         return reclamacaoRepository.findByAtivoTrue()
                 .stream()
@@ -44,19 +82,26 @@ public class ReclamacaoService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Busca uma reclamação pelo ID.
+     * @throws ResponseStatusException se não encontrada ou desativada
+     */
     public DetalhamentoReclamacao buscarPorId(Long id) {
         Reclamacao reclamacao = reclamacaoRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Reclamação não encontrada com ID: " + id));
 
         if (!reclamacao.isAtivo()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Reclamação está desativada");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Reclamação está desativada");
         }
 
         return reclamacaoMapper.toDetalhamentoDto(reclamacao);
     }
 
+    /**
+     * Atualiza uma reclamação existente.
+     * @throws ResponseStatusException se não encontrada ou desativada
+     */
     @Transactional
     public DetalhamentoReclamacao atualizarReclamacao(Long id, AtualizacaoReclamacao dto) {
         Reclamacao reclamacao = reclamacaoRepository.findById(id)
@@ -72,11 +117,26 @@ public class ReclamacaoService {
         return reclamacaoMapper.toDetalhamentoDto(reclamacao);
     }
 
+    /**
+     * Inativa uma reclamação. Apenas o dono ou um administrador podem executar.
+     * @throws ResponseStatusException se a reclamação não existir, o usuário não tiver permissão ou já estiver inativa
+     */
     @Transactional
-    public void desativarReclamacao(Long id) {
+    public void inativarReclamacao(Long id) {
         Reclamacao reclamacao = reclamacaoRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Reclamação não encontrada com ID: " + id));
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String emailUsuarioLogado = auth.getName();
+        boolean isOwner = Objects.equals(reclamacao.getUsuario().getEmail(), emailUsuarioLogado);
+        boolean isAdmin = auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        if (!isOwner && !isAdmin) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Usuário não pode deletar essa reclamação");
+        }
 
         if (!reclamacao.isAtivo()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
@@ -86,4 +146,6 @@ public class ReclamacaoService {
         reclamacao.setAtivo(false);
     }
 }
+
+
 

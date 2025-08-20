@@ -7,24 +7,26 @@ import com.artheus.cidadaoalerta.model.Reclamacao;
 import com.artheus.cidadaoalerta.model.Usuario;
 import org.mapstruct.*;
 
+import java.util.List;
+
 @Mapper(componentModel = "spring")
 public interface ReclamacaoMapper {
 
-    // DTO de cadastro → Entity
-    @Mapping(target = "id", ignore = true)         // Ignora id na criação
-    @Mapping(target = "version", ignore = true)    // Ignora version na criação
-    @Mapping(target = "status", constant = "ABERTA")
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "version", ignore = true)
+    @Mapping(target = "dataCriacao", ignore = true)
+    @Mapping(target = "ativo", ignore = true)
+    @Mapping(target = "status", expression = "java(com.artheus.cidadaoalerta.model.enums.StatusReclamacao.ABERTA)")
     @Mapping(target = "usuario", source = "usuario")
     Reclamacao toEntity(CadastroReclamacao dto, Usuario usuario);
 
-    // Entity → DTO de saída
     @Mapping(target = "usuarioId", source = "usuario.id")
     @Mapping(target = "nomeUsuario", source = "usuario.nome")
     @Mapping(target = "statusReclamacao", source = "status")
     DetalhamentoReclamacao toDetalhamentoDto(Reclamacao reclamacao);
 
-    // Atualiza uma entidade existente a partir do DTO de atualização
-    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE) //campos nulos no Dto nao sobscrevem valores existentes
+    List<DetalhamentoReclamacao> toDetalhamentoList(List<Reclamacao> reclamacoes);
+
+    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     void updateReclamacaoFromDto(AtualizacaoReclamacao dto, @MappingTarget Reclamacao reclamacao);
 }
-

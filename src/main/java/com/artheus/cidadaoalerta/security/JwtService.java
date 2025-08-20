@@ -3,10 +3,12 @@ package com.artheus.cidadaoalerta.security;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 import java.security.Key;
 import java.util.Date;
+import java.util.Map;
 
 @Component
 public class JwtService {
@@ -22,11 +24,18 @@ public class JwtService {
         this.expiration = expiration;
     }
 
-    public String gerarToken(String email) {
+    /**
+     * Aqui gera token com email e role
+     */
+    public String gerarToken(UserDetails userDetails) {
+        String role = userDetails.getAuthorities().iterator().next().getAuthority();
+
         return Jwts.builder()
-                .setSubject(email)
+                .setSubject(userDetails.getUsername()) // email
+                .addClaims(Map.of("role", role))       //  inclui role no payload
+                .setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(new Date(System.currentTimeMillis() + expiration))
-                .signWith(key)
+                .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
     }
 
@@ -40,7 +49,18 @@ public class JwtService {
     }
 
     public String getEmailUsuario(String token) {
-        return Jwts.parserBuilder().setSigningKey(key).build()
-                .parseClaimsJws(token).getBody().getSubject();
+        return getClaims(token).getSubject();
+    }
+
+    public String getRoleUsuario(String token) {
+        return (String) getClaims(token).get("role");
+    }
+
+    private Claims getClaims(String token) {
+        return Jwts.parserBuilder()
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
     }
 }

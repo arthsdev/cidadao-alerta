@@ -19,6 +19,13 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@Table(
+        name = "reclamacao",
+        uniqueConstraints = {
+                // Garante que o mesmo usuario nao possa cadastrar duas reclamacoes com o mesmo titulo
+                @UniqueConstraint(columnNames = {"titulo", "usuario_id"})
+        }
+)
 public class Reclamacao {
 
     @Id
