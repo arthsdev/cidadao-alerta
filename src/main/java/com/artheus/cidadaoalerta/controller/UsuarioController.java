@@ -5,7 +5,6 @@ import com.artheus.cidadaoalerta.dto.AtualizacaoUsuario;
 import com.artheus.cidadaoalerta.dto.CadastroUsuario;
 import com.artheus.cidadaoalerta.dto.DetalhamentoUsuario;
 import com.artheus.cidadaoalerta.mapper.UsuarioMapper;
-import com.artheus.cidadaoalerta.security.UsuarioDetails;
 import com.artheus.cidadaoalerta.service.UsuarioService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -69,8 +68,7 @@ public class UsuarioController {
 
     @GetMapping("/me")
     public ResponseEntity<DetalhamentoUsuario> buscarUsuarioLogado(Authentication authentication) {
-        UsuarioDetails usuarioDetails = (UsuarioDetails) authentication.getPrincipal();
-        Usuario usuario = usuarioDetails.getUsuario();
+        Usuario usuario = (Usuario) authentication.getPrincipal(); // cast direto para Usuario
 
         DetalhamentoUsuario dto = usuarioMapper.toDetalhamentoDto(usuario);
         return ResponseEntity.ok(dto);

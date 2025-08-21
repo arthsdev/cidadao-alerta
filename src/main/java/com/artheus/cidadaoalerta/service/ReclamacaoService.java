@@ -35,42 +35,29 @@ public class ReclamacaoService {
      * @return DTO detalhado da reclamação cadastrada
      * @throws ResponseStatusException se o usuário não for encontrado
      */
-    public DetalhamentoReclamacao cadastrarReclamacao(CadastroReclamacao cadastroDto) {
-        Usuario usuario = usuarioRepository.findById(cadastroDto.usuarioId())
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "Usuário não encontrado com ID: " + cadastroDto.usuarioId()
-                ));
+    public DetalhamentoReclamacao cadastrarReclamacao(CadastroReclamacao cadastroDto, Usuario usuario) {
 
-        // Verifica se já existe uma reclamação ativa com o mesmo título para este usuário
-        Optional<Reclamacao> reclamacaoExistente = reclamacaoRepository
-                .findByTituloAndUsuarioIdAndAtivoTrue(cadastroDto.titulo(), usuario.getId());
+        // Valida se já existe uma reclamação ativa com o mesmo título para este usuário
+        validarReclamacaoDuplicada(cadastroDto.titulo(), usuario.getId());
 
-        // Se a reclamação já existir (ativa), retorna um erro
-        if (reclamacaoExistente.isPresent()) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Já existe uma reclamação ativa com esse título para este usuário."
-            );
-        }
-
-        // Se não existir, prossegue com a criação
+        // Cria e salva a reclamação associada ao usuário logado
         Reclamacao reclamacao = reclamacaoMapper.toEntity(cadastroDto, usuario);
         return reclamacaoMapper.toDetalhamentoDto(reclamacaoRepository.save(reclamacao));
     }
 
-
     private void validarReclamacaoDuplicada(String titulo, Long usuarioId) {
-        Optional<Reclamacao> reclamacaoExistente = reclamacaoRepository
-                .findByTituloAndUsuarioIdAndAtivoTrue(titulo, usuarioId);
+        boolean existe = reclamacaoRepository
+                .findByTituloAndUsuarioIdAndAtivoTrue(titulo, usuarioId)
+                .isPresent();
 
-        if (reclamacaoExistente.isPresent()) {
+        if (existe) {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
                     "Já existe uma reclamação ativa com esse título para este usuário."
             );
         }
     }
+
 
     /**
      * Retorna todas as reclamações ativas.
@@ -128,8 +115,9 @@ public class ReclamacaoService {
                         "Reclamação não encontrada com ID: " + id));
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String emailUsuarioLogado = auth.getName();
-        boolean isOwner = Objects.equals(reclamacao.getUsuario().getEmail(), emailUsuarioLogado);
+        Usuario usuarioLogado = (Usuario) auth.getPrincipal();
+
+        boolean isOwner = reclamacao.getUsuario().getId().equals(usuarioLogado.getId());
         boolean isAdmin = auth.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
 
@@ -145,6 +133,7 @@ public class ReclamacaoService {
 
         reclamacao.setAtivo(false);
     }
+
 }
 
 

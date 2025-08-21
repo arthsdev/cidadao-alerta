@@ -4,13 +4,14 @@ import com.artheus.cidadaoalerta.dto.AtualizacaoReclamacao;
 import com.artheus.cidadaoalerta.dto.CadastroReclamacao;
 import com.artheus.cidadaoalerta.dto.DetalhamentoReclamacao;
 import com.artheus.cidadaoalerta.mapper.ReclamacaoMapper;
+import com.artheus.cidadaoalerta.model.Usuario;
 import com.artheus.cidadaoalerta.security.ReclamacaoSecurity;
 import com.artheus.cidadaoalerta.service.ReclamacaoService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -28,9 +29,10 @@ public class ReclamacaoController {
 
     @PostMapping
     public ResponseEntity<DetalhamentoReclamacao> cadastrarReclamacao(
-            @RequestBody @Valid CadastroReclamacao dados
+            @RequestBody @Valid CadastroReclamacao dados,
+            @AuthenticationPrincipal Usuario usuarioLogado
     ) {
-        DetalhamentoReclamacao reclamacao = reclamacaoService.cadastrarReclamacao(dados);
+        DetalhamentoReclamacao reclamacao = reclamacaoService.cadastrarReclamacao(dados, usuarioLogado);
 
         URI uri = ServletUriComponentsBuilder
                 .fromCurrentRequest()

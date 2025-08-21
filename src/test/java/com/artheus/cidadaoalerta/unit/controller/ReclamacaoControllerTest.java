@@ -5,6 +5,7 @@ import com.artheus.cidadaoalerta.dto.AtualizacaoReclamacao;
 import com.artheus.cidadaoalerta.dto.CadastroReclamacao;
 import com.artheus.cidadaoalerta.dto.DetalhamentoReclamacao;
 import com.artheus.cidadaoalerta.model.Localizacao;
+import com.artheus.cidadaoalerta.model.Usuario;
 import com.artheus.cidadaoalerta.model.enums.CategoriaReclamacao;
 import com.artheus.cidadaoalerta.model.enums.StatusReclamacao;
 import com.artheus.cidadaoalerta.service.ReclamacaoService;
@@ -16,18 +17,18 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ExtendWith(MockitoExtension.class)
 class ReclamacaoControllerTest {
@@ -44,11 +45,16 @@ class ReclamacaoControllerTest {
     private CadastroReclamacao cadastroDto;
     private DetalhamentoReclamacao detalhamentoDto;
     private AtualizacaoReclamacao atualizacaoDto;
+    private Usuario usuarioLogado;
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(reclamacaoController).build();
         objectMapper = new ObjectMapper();
+
+        usuarioLogado = new Usuario();
+        usuarioLogado.setId(1L);
+        usuarioLogado.setNome("Fabiano Martins");
+        usuarioLogado.setEmail("fabiano@email.com");
 
         Localizacao localizacao = new Localizacao();
         localizacao.setLatitude(10.0);
@@ -58,8 +64,7 @@ class ReclamacaoControllerTest {
                 "Rua sem iluminação",
                 "A rua está completamente escura à noite, perigo para pedestres",
                 CategoriaReclamacao.ILUMINACAO,
-                localizacao,
-                1L
+                localizacao
         );
 
         detalhamentoDto = new DetalhamentoReclamacao(
@@ -70,8 +75,8 @@ class ReclamacaoControllerTest {
                 cadastroDto.localizacao(),
                 StatusReclamacao.ABERTA,
                 LocalDateTime.now(),
-                1L,
-                "Fabiano"
+                usuarioLogado.getId(),
+                usuarioLogado.getNome()
         );
 
         atualizacaoDto = new AtualizacaoReclamacao();
@@ -79,6 +84,10 @@ class ReclamacaoControllerTest {
         atualizacaoDto.setDescricao("Algumas lâmpadas foram instaladas, mas ainda escuro em alguns pontos");
         atualizacaoDto.setCategoriaReclamacao(CategoriaReclamacao.ILUMINACAO);
         atualizacaoDto.setLocalizacao(localizacao);
+
+        mockMvc = MockMvcBuilders
+                .standaloneSetup(reclamacaoController)
+                .build();
     }
 
     private String toJson(Object obj) throws Exception {
@@ -89,7 +98,7 @@ class ReclamacaoControllerTest {
 
     @Test
     void deveCadastrarReclamacao() throws Exception {
-        when(reclamacaoService.cadastrarReclamacao(any(CadastroReclamacao.class)))
+        when(reclamacaoService.cadastrarReclamacao(any(CadastroReclamacao.class), any(Usuario.class)))
                 .thenReturn(detalhamentoDto);
 
         mockMvc.perform(post("/reclamacoes")
@@ -102,7 +111,7 @@ class ReclamacaoControllerTest {
                 .andExpect(jsonPath("$.categoriaReclamacao").value(detalhamentoDto.categoriaReclamacao().name()))
                 .andExpect(jsonPath("$.statusReclamacao").value(detalhamentoDto.statusReclamacao().name()));
 
-        verify(reclamacaoService).cadastrarReclamacao(any(CadastroReclamacao.class));
+        verify(reclamacaoService).cadastrarReclamacao(any(CadastroReclamacao.class), any(Usuario.class));
     }
 
     @Test
@@ -181,7 +190,6 @@ class ReclamacaoControllerTest {
         CadastroReclamacao dtoInvalido = new CadastroReclamacao(
                 "",
                 "descricao curta",
-                null,
                 null,
                 null
         );

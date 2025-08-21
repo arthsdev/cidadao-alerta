@@ -7,7 +7,6 @@ import com.artheus.cidadaoalerta.dto.DetalhamentoUsuario;
 import com.artheus.cidadaoalerta.mapper.UsuarioMapper;
 import com.artheus.cidadaoalerta.model.Usuario;
 import com.artheus.cidadaoalerta.model.enums.Role;
-import com.artheus.cidadaoalerta.security.UsuarioDetails;
 import com.artheus.cidadaoalerta.service.UsuarioService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -44,9 +43,6 @@ class UsuarioControllerTest {
 
     @Mock
     private Authentication authentication;
-
-    @Mock
-    private UsuarioDetails usuarioDetails;
 
     @BeforeEach
     void setup() {
@@ -124,8 +120,8 @@ class UsuarioControllerTest {
         Usuario usuario = new Usuario(1L, "Fulano", "fulano@email.com", "senha123456", true, Role.ROLE_USER, new ArrayList<>());
         DetalhamentoUsuario dto = new DetalhamentoUsuario(1L, "Fulano", "fulano@email.com", true, Role.ROLE_USER);
 
-        when(authentication.getPrincipal()).thenReturn(usuarioDetails);
-        when(usuarioDetails.getUsuario()).thenReturn(usuario);
+        when(authentication.getPrincipal()).thenReturn(usuario);
+
         when(usuarioMapper.toDetalhamentoDto(usuario)).thenReturn(dto);
 
         ResponseEntity<DetalhamentoUsuario> resultado = usuarioController.buscarUsuarioLogado(authentication);
@@ -134,4 +130,5 @@ class UsuarioControllerTest {
         assertEquals(dto, resultado.getBody());
         verify(usuarioMapper).toDetalhamentoDto(usuario);
     }
+
 }

@@ -1,10 +1,9 @@
-package com.artheus.cidadaoalerta.integration;
+package com.artheus.cidadaoalerta.integration.usuario;
 
 import com.artheus.cidadaoalerta.model.Usuario;
 import com.artheus.cidadaoalerta.model.enums.Role;
 import com.artheus.cidadaoalerta.repository.UsuarioRepository;
 import com.artheus.cidadaoalerta.security.JwtService;
-import com.artheus.cidadaoalerta.security.UsuarioDetails;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -61,8 +60,8 @@ public class UsuarioControllerAuthIntegrationTest {
 
     @Test
     void deveRetornarUsuarioAutenticadoComJwtValido() throws Exception {
-        UsuarioDetails usuarioDetails = new UsuarioDetails(usuario);
-        String token = jwtService.gerarToken(usuarioDetails);
+        Usuario usuarioLogado = usuario;
+        String token = jwtService.gerarToken(usuario);
 
         mockMvc.perform(get("/usuarios/me")
                         .header("Authorization", "Bearer " + token)

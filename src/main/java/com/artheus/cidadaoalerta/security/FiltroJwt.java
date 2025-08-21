@@ -34,16 +34,17 @@ public class FiltroJwt extends OncePerRequestFilter {
 
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7);
+
             try {
+                if (!jwtService.validarToken(token)) {
+                    response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Token inválido ou expirado");
+                    return;
+                }
+
                 String email = jwtService.getEmailUsuario(token);
 
                 if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                     UserDetails userDetails = userDetailsService.loadUserByUsername(email);
-
-                    if (!jwtService.validarToken(token)) {
-                        response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Token inválido ou expirado");
-                        return;
-                    }
 
                     UsernamePasswordAuthenticationToken authToken =
                             new UsernamePasswordAuthenticationToken(

@@ -1,4 +1,4 @@
-package com.artheus.cidadaoalerta.integration;
+package com.artheus.cidadaoalerta.integration.reclamacao;
 
 import com.artheus.cidadaoalerta.CidadaoAlertaApplication;
 import com.artheus.cidadaoalerta.model.Localizacao;

@@ -54,6 +54,7 @@ class ReclamacaoServiceTest {
         usuario = new Usuario();
         usuario.setId(1L);
         usuario.setNome("Fabiano Martins");
+        usuario.setEmail("fabiano@email.com");
 
         Localizacao localizacao = new Localizacao(-22.422, -45.456);
 
@@ -61,8 +62,7 @@ class ReclamacaoServiceTest {
                 "Rua escura",
                 "A iluminação da rua está apagada há 3 dias",
                 CategoriaReclamacao.ILUMINACAO,
-                localizacao,
-                1L
+                localizacao
         );
 
         reclamacao = new Reclamacao();
@@ -83,28 +83,25 @@ class ReclamacaoServiceTest {
 
     @Test
     void testarCadastroReclamacao() {
-        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuario));
         when(reclamacaoMapper.toEntity(cadastroDto, usuario)).thenReturn(reclamacao);
         when(reclamacaoRepository.save(reclamacao)).thenReturn(reclamacao);
         when(reclamacaoMapper.toDetalhamentoDto(reclamacao)).thenReturn(mock(DetalhamentoReclamacao.class));
+        when(reclamacaoRepository.findByTituloAndUsuarioIdAndAtivoTrue(cadastroDto.titulo(), usuario.getId()))
+                .thenReturn(Optional.empty());
 
-        DetalhamentoReclamacao dto = reclamacaoService.cadastrarReclamacao(cadastroDto);
+        DetalhamentoReclamacao dto = reclamacaoService.cadastrarReclamacao(cadastroDto, usuario);
         assertNotNull(dto);
 
-        verify(usuarioRepository).findById(1L);
         verify(reclamacaoRepository).save(reclamacao);
     }
 
     @Test
     void testarCadastroReclamacaoComTituloDuplicado() {
-        // Configurando o cenário onde já existe uma reclamação com o mesmo título para o mesmo usuário
-        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuario));
         when(reclamacaoRepository.findByTituloAndUsuarioIdAndAtivoTrue(cadastroDto.titulo(), usuario.getId()))
-                .thenReturn(Optional.of(reclamacao));  // A reclamação já existe!
+                .thenReturn(Optional.of(reclamacao));
 
-        // Esperamos que o método lance uma ResponseStatusException com HTTP 409 (CONFLICT)
-        assertThrows(ResponseStatusException.class, () -> reclamacaoService.cadastrarReclamacao(cadastroDto),
-                "Já existe uma reclamação ativa com esse título para este usuário.");
+        assertThrows(ResponseStatusException.class,
+                () -> reclamacaoService.cadastrarReclamacao(cadastroDto, usuario));
     }
 
     @Test
@@ -139,7 +136,7 @@ class ReclamacaoServiceTest {
     @Test
     void testarDesativarReclamacao() {
         Authentication auth = mock(Authentication.class);
-        when(auth.getName()).thenReturn(usuario.getEmail()); // retorna o email do usuário dono
+        when(auth.getName()).thenReturn(usuario.getEmail());
 
         SecurityContext securityContext = mock(SecurityContext.class);
         when(securityContext.getAuthentication()).thenReturn(auth);

@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 class CadastroReclamacaoTest {
 
@@ -30,8 +31,7 @@ class CadastroReclamacaoTest {
                 "", // título inválido
                 "Descrição válida com mais de 20 caracteres",
                 CategoriaReclamacao.ASFALTO,
-                new Localizacao(12.34, 56.78),
-                1L
+                new Localizacao(12.34, 56.78)
         );
 
         Set<ConstraintViolation<CadastroReclamacao>> violations = validator.validate(dto);
@@ -44,8 +44,7 @@ class CadastroReclamacaoTest {
                 "Título válido",
                 "Curta", // descrição inválida (menos de 20 caracteres)
                 CategoriaReclamacao.ILUMINACAO,
-                new Localizacao(12.34, 56.78),
-                1L
+                new Localizacao(12.34, 56.78)
         );
 
         Set<ConstraintViolation<CadastroReclamacao>> violations = validator.validate(dto);
@@ -58,8 +57,7 @@ class CadastroReclamacaoTest {
                 "Título válido",
                 "Descrição válida com mais de 20 caracteres",
                 null, // categoria inválida
-                new Localizacao(12.34, 56.78),
-                1L
+                new Localizacao(12.34, 56.78)
         );
 
         Set<ConstraintViolation<CadastroReclamacao>> violations = validator.validate(dto);
@@ -72,8 +70,7 @@ class CadastroReclamacaoTest {
                 "Título válido",
                 "Descrição válida com mais de 20 caracteres",
                 CategoriaReclamacao.SANEAMENTO,
-                null, // localizacao inválida
-                1L
+                null // localizacao inválida
         );
 
         Set<ConstraintViolation<CadastroReclamacao>> violations = validator.validate(dto);
@@ -81,17 +78,18 @@ class CadastroReclamacaoTest {
     }
 
     @Test
-    void usuarioIdNaoPodeSerNulo() {
+    void camposNaoPodemSerNulos() {
         CadastroReclamacao dto = new CadastroReclamacao(
                 "Título válido",
                 "Descrição válida com mais de 20 caracteres",
                 CategoriaReclamacao.SEGURANCA,
-                new Localizacao(12.34, 56.78),
-                null // usuarioId inválido
+                new Localizacao(12.34, 56.78)
         );
 
-        Set<ConstraintViolation<CadastroReclamacao>> violations = validator.validate(dto);
-        assertThat(violations).anyMatch(v -> v.getPropertyPath().toString().equals("usuarioId"));
+        assertNotNull(dto.titulo());
+        assertNotNull(dto.descricao());
+        assertNotNull(dto.categoriaReclamacao());
+        assertNotNull(dto.localizacao());
     }
 
     @Test
@@ -100,8 +98,7 @@ class CadastroReclamacaoTest {
                 "Título válido",
                 "Descrição válida com mais de 20 caracteres",
                 CategoriaReclamacao.ASFALTO,
-                new Localizacao(12.34, 56.78),
-                1L
+                new Localizacao(12.34, 56.78)
         );
 
         Set<ConstraintViolation<CadastroReclamacao>> violations = validator.validate(dto);

@@ -22,10 +22,6 @@ public record CadastroReclamacao(
 
         @NotNull(message = "Localização não pode estar vazia")
         @Valid
-        Localizacao localizacao,
-
-        @NotNull(message = "ID do usuário não pode estar vazio")
-        Long usuarioId
-
+        Localizacao localizacao
 ) {
 }
