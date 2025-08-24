@@ -3,20 +3,24 @@ package com.artheus.cidadaoalerta.controller;
 import com.artheus.cidadaoalerta.dto.AtualizacaoReclamacao;
 import com.artheus.cidadaoalerta.dto.CadastroReclamacao;
 import com.artheus.cidadaoalerta.dto.DetalhamentoReclamacao;
-import com.artheus.cidadaoalerta.mapper.ReclamacaoMapper;
+import com.artheus.cidadaoalerta.dto.ReclamacaoPageResponse;
 import com.artheus.cidadaoalerta.model.Usuario;
-import com.artheus.cidadaoalerta.security.ReclamacaoSecurity;
 import com.artheus.cidadaoalerta.service.ReclamacaoService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
-import java.util.List;
 
 @RestController
 @RequestMapping("/reclamacoes")
@@ -24,18 +28,15 @@ import java.util.List;
 public class ReclamacaoController {
 
     private final ReclamacaoService reclamacaoService;
-    private final ReclamacaoSecurity reclamacaoSecurity;
-    private final ReclamacaoMapper reclamacaoMapper;
 
     @PostMapping
     public ResponseEntity<DetalhamentoReclamacao> cadastrarReclamacao(
-            @RequestBody @Valid CadastroReclamacao dados,
-            @AuthenticationPrincipal Usuario usuarioLogado
+            @RequestBody @Valid CadastroReclamacao cadastroDto,
+            @AuthenticationPrincipal Usuario usuario
     ) {
-        DetalhamentoReclamacao reclamacao = reclamacaoService.cadastrarReclamacao(dados, usuarioLogado);
+        DetalhamentoReclamacao reclamacao = reclamacaoService.cadastrarReclamacao(cadastroDto, usuario);
 
-        URI uri = ServletUriComponentsBuilder
-                .fromCurrentRequest()
+        URI uri = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}")
                 .buildAndExpand(reclamacao.id())
                 .toUri();
@@ -44,10 +45,24 @@ public class ReclamacaoController {
     }
 
 
+
+
     @GetMapping
-    public ResponseEntity<List<DetalhamentoReclamacao>> listarReclamacoes() {
-        List<DetalhamentoReclamacao> reclamacoes = reclamacaoService.listarReclamacoes();
-        return ResponseEntity.ok(reclamacoes);
+    public ResponseEntity<ReclamacaoPageResponse<DetalhamentoReclamacao>> listarReclamacoes(
+            @PageableDefault(size = 5, sort = "dataCriacao", direction = Sort.Direction.DESC) Pageable pageable) {
+
+        Page<DetalhamentoReclamacao> reclamacoes = reclamacaoService.listarReclamacoes(pageable);
+
+        ReclamacaoPageResponse<DetalhamentoReclamacao> response = new ReclamacaoPageResponse<>(
+                reclamacoes.getContent(),
+                reclamacoes.getNumber(),
+                reclamacoes.getSize(),
+                reclamacoes.getTotalElements(),
+                reclamacoes.getTotalPages(),
+                reclamacoes.isLast()
+        );
+
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/{id}")
@@ -68,7 +83,7 @@ public class ReclamacaoController {
             @PathVariable Long id,
             @RequestBody @Valid AtualizacaoReclamacao dto
     ) {
-        var reclamacaoAtualizada = reclamacaoService.atualizarReclamacao(id, dto);
+        DetalhamentoReclamacao reclamacaoAtualizada = reclamacaoService.atualizarReclamacao(id, dto);
         return ResponseEntity.ok(reclamacaoAtualizada);
     }
 
@@ -76,7 +91,7 @@ public class ReclamacaoController {
     public ResponseEntity<DetalhamentoReclamacao> atualizarParcialReclamacao(
             @PathVariable Long id,
             @RequestBody AtualizacaoReclamacao dto) {
-        var reclamacaoAtualizada = reclamacaoService.atualizarReclamacao(id, dto);
+        DetalhamentoReclamacao reclamacaoAtualizada = reclamacaoService.atualizarReclamacao(id, dto);
         return ResponseEntity.ok(reclamacaoAtualizada);
     }
 }

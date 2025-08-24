@@ -21,9 +21,12 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest(classes = CidadaoAlertaApplication.class, properties = "spring.config.location=classpath:application-test.properties")
+@SpringBootTest(
+        classes = CidadaoAlertaApplication.class,
+        properties = "spring.config.location=classpath:application-test.properties"
+)
 @AutoConfigureMockMvc
-public class ReclamacaoControllerSecurityIntegrationTest {
+class ReclamacaoControllerSecurityIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -46,69 +49,53 @@ public class ReclamacaoControllerSecurityIntegrationTest {
         reclamacaoRepository.deleteAll();
         usuarioRepository.deleteAll();
 
-        // Usuário dono da reclamação
-        usuarioDono = new Usuario();
-        usuarioDono.setNome("Usuario Dono");
-        usuarioDono.setEmail("usuario@email.com");
-        usuarioDono.setSenha(passwordEncoder.encode("senha123"));
-        usuarioDono.setAtivo(true);
-        usuarioDono.setPapel(Role.ROLE_USER);
-        usuarioDono = usuarioRepository.save(usuarioDono);
+        usuarioDono = criarUsuario("Usuario Dono", "usuario@email.com", Role.ROLE_USER);
+        usuarioOutro = criarUsuario("Outro Usuario", "outro@email.com", Role.ROLE_USER);
 
-        // Outro usuário
-        usuarioOutro = new Usuario();
-        usuarioOutro.setNome("Outro Usuario");
-        usuarioOutro.setEmail("outro@email.com");
-        usuarioOutro.setSenha(passwordEncoder.encode("senha123"));
-        usuarioOutro.setAtivo(true);
-        usuarioOutro.setPapel(Role.ROLE_USER);
-        usuarioOutro = usuarioRepository.save(usuarioOutro);
-
-        // Criando localização
-        Localizacao localizacao = new Localizacao(10.0, 20.0);
-
-        // Reclamação criada pelo usuário dono
-        reclamacao = new Reclamacao(
-                null, // id
-                "Título Teste", // titulo
-                "Descrição Teste com mais de 20 caracteres", // descricao
-                CategoriaReclamacao.ILUMINACAO, // categoria
-                localizacao, // localizacao
-                StatusReclamacao.ABERTA, // status
-                null, // dataCriacao será gerada automaticamente
-                usuarioDono, // usuário dono
-                true, // ativo
-                null // version
-        );
-        reclamacao = reclamacaoRepository.save(reclamacao);
+        reclamacao = reclamacaoRepository.save(new Reclamacao(
+                null,
+                "Título Teste",
+                "Descrição Teste com mais de 20 caracteres",
+                CategoriaReclamacao.ILUMINACAO,
+                new Localizacao(10.0, 20.0),
+                StatusReclamacao.ABERTA,
+                null,
+                usuarioDono,
+                true,
+                null
+        ));
     }
 
     @Test
-    void delete_deveRetornarForbidden_seUsuarioNaoForDono() throws Exception {
+    void deveRetornarForbidden_quandoUsuarioNaoForDono() throws Exception {
         mockMvc.perform(delete("/reclamacoes/{id}", reclamacao.getId())
-                        .with(user(usuarioOutro.getEmail()).password("senha123456").roles("USER")))
+                        .with(user(usuarioOutro.getEmail()).roles("USER")))
                 .andExpect(status().isForbidden());
     }
 
     @Test
-    void delete_deveRetornarNoContent_seUsuarioForDono() throws Exception {
+    void deveRetornarNoContent_quandoUsuarioForDono() throws Exception {
         mockMvc.perform(delete("/reclamacoes/{id}", reclamacao.getId())
-                        .with(user(usuarioDono.getEmail()).password("senha123").roles("USER")))
+                        .with(user(usuarioDono.getEmail()).roles("USER")))
                 .andExpect(status().isNoContent());
     }
 
     @Test
-    void delete_deveRetornarNoContent_seUsuarioForAdmin() throws Exception {
-        Usuario admin = new Usuario();
-        admin.setNome("Administrador");
-        admin.setEmail("admin@email.com");
-        admin.setSenha(passwordEncoder.encode("admin123"));
-        admin.setAtivo(true);
-        admin.setPapel(Role.ROLE_ADMIN);
-        admin = usuarioRepository.save(admin);
+    void deveRetornarNoContent_quandoUsuarioForAdmin() throws Exception {
+        Usuario admin = criarUsuario("Administrador", "admin@email.com", Role.ROLE_ADMIN);
 
         mockMvc.perform(delete("/reclamacoes/{id}", reclamacao.getId())
-                        .with(user(admin.getEmail()).password("admin123").roles("ADMIN")))
+                        .with(user(admin.getEmail()).roles("ADMIN")))
                 .andExpect(status().isNoContent());
+    }
+
+    private Usuario criarUsuario(String nome, String email, Role role) {
+        Usuario usuario = new Usuario();
+        usuario.setNome(nome);
+        usuario.setEmail(email);
+        usuario.setSenha(passwordEncoder.encode("123456"));
+        usuario.setAtivo(true);
+        usuario.setPapel(role);
+        return usuarioRepository.save(usuario);
     }
 }

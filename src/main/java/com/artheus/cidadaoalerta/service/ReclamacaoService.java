@@ -9,17 +9,14 @@ import com.artheus.cidadaoalerta.model.Usuario;
 import com.artheus.cidadaoalerta.repository.ReclamacaoRepository;
 import com.artheus.cidadaoalerta.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
-
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -31,11 +28,15 @@ public class ReclamacaoService {
 
     /**
      * Cadastra uma nova reclamação para um usuário.
+     *
      * @param cadastroDto dados da reclamação
      * @return DTO detalhado da reclamação cadastrada
      * @throws ResponseStatusException se o usuário não for encontrado
      */
     public DetalhamentoReclamacao cadastrarReclamacao(CadastroReclamacao cadastroDto, Usuario usuario) {
+        if (usuario == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuário não autenticado");
+        }
 
         // Valida se já existe uma reclamação ativa com o mesmo título para este usuário
         validarReclamacaoDuplicada(cadastroDto.titulo(), usuario.getId());
@@ -44,6 +45,7 @@ public class ReclamacaoService {
         Reclamacao reclamacao = reclamacaoMapper.toEntity(cadastroDto, usuario);
         return reclamacaoMapper.toDetalhamentoDto(reclamacaoRepository.save(reclamacao));
     }
+
 
     private void validarReclamacaoDuplicada(String titulo, Long usuarioId) {
         boolean existe = reclamacaoRepository
@@ -58,19 +60,17 @@ public class ReclamacaoService {
         }
     }
 
-
     /**
      * Retorna todas as reclamações ativas.
      */
-    public List<DetalhamentoReclamacao> listarReclamacoes() {
-        return reclamacaoRepository.findByAtivoTrue()
-                .stream()
-                .map(reclamacaoMapper::toDetalhamentoDto)
-                .collect(Collectors.toList());
+    public Page<DetalhamentoReclamacao> listarReclamacoes(Pageable pageable) {
+        return reclamacaoRepository.findByAtivoTrue(pageable)
+                .map(reclamacaoMapper::toDetalhamentoDto);
     }
 
     /**
      * Busca uma reclamação pelo ID.
+     *
      * @throws ResponseStatusException se não encontrada ou desativada
      */
     public DetalhamentoReclamacao buscarPorId(Long id) {
@@ -87,6 +87,7 @@ public class ReclamacaoService {
 
     /**
      * Atualiza uma reclamação existente.
+     *
      * @throws ResponseStatusException se não encontrada ou desativada
      */
     @Transactional
@@ -106,18 +107,37 @@ public class ReclamacaoService {
 
     /**
      * Inativa uma reclamação. Apenas o dono ou um administrador podem executar.
+     *
      * @throws ResponseStatusException se a reclamação não existir, o usuário não tiver permissão ou já estiver inativa
      */
     @Transactional
     public void inativarReclamacao(Long id) {
-        Reclamacao reclamacao = reclamacaoRepository.findById(id)
+        Reclamacao reclamacao = buscarReclamacaoAtivaPorId(id);
+        Usuario usuarioLogado = obterUsuarioLogado();
+
+        validarPermissao(usuarioLogado, reclamacao);
+
+        reclamacao.setAtivo(false);
+        reclamacaoRepository.save(reclamacao);
+    }
+
+    private Reclamacao buscarReclamacaoAtivaPorId(Long id) {
+        return reclamacaoRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Reclamação não encontrada com ID: " + id));
+    }
 
+    private Usuario obterUsuarioLogado() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        Usuario usuarioLogado = (Usuario) auth.getPrincipal();
+        String email = auth.getName();
+        return usuarioRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED,
+                        "Usuário não encontrado"));
+    }
 
-        boolean isOwner = reclamacao.getUsuario().getId().equals(usuarioLogado.getId());
+    private void validarPermissao(Usuario usuario, Reclamacao reclamacao) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        boolean isOwner = reclamacao.getUsuario().getId().equals(usuario.getId());
         boolean isAdmin = auth.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
 
@@ -130,9 +150,8 @@ public class ReclamacaoService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Reclamação já está desativada");
         }
-
-        reclamacao.setAtivo(false);
     }
+
 
 }
 

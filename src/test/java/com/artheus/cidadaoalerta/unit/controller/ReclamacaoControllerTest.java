@@ -1,9 +1,7 @@
 package com.artheus.cidadaoalerta.unit.controller;
 
 import com.artheus.cidadaoalerta.controller.ReclamacaoController;
-import com.artheus.cidadaoalerta.dto.AtualizacaoReclamacao;
-import com.artheus.cidadaoalerta.dto.CadastroReclamacao;
-import com.artheus.cidadaoalerta.dto.DetalhamentoReclamacao;
+import com.artheus.cidadaoalerta.dto.*;
 import com.artheus.cidadaoalerta.model.Localizacao;
 import com.artheus.cidadaoalerta.model.Usuario;
 import com.artheus.cidadaoalerta.model.enums.CategoriaReclamacao;
@@ -16,7 +14,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.HttpStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableHandlerMethodArgumentResolver;
+import org.springframework.http.MediaType;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.server.ResponseStatusException;
@@ -25,10 +30,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @ExtendWith(MockitoExtension.class)
 class ReclamacaoControllerTest {
@@ -56,9 +61,7 @@ class ReclamacaoControllerTest {
         usuarioLogado.setNome("Fabiano Martins");
         usuarioLogado.setEmail("fabiano@email.com");
 
-        Localizacao localizacao = new Localizacao();
-        localizacao.setLatitude(10.0);
-        localizacao.setLongitude(20.0);
+        Localizacao localizacao = new Localizacao(10.0, 20.0);
 
         cadastroDto = new CadastroReclamacao(
                 "Rua sem iluminação",
@@ -87,6 +90,7 @@ class ReclamacaoControllerTest {
 
         mockMvc = MockMvcBuilders
                 .standaloneSetup(reclamacaoController)
+                .setCustomArgumentResolvers(new PageableHandlerMethodArgumentResolver())
                 .build();
     }
 
@@ -94,16 +98,60 @@ class ReclamacaoControllerTest {
         return objectMapper.writeValueAsString(obj);
     }
 
+    private void mockSecurityContext() {
+        Authentication auth = mock(Authentication.class);
+        when(auth.getPrincipal()).thenReturn(usuarioLogado);
+
+        SecurityContext securityContext = mock(SecurityContext.class);
+        when(securityContext.getAuthentication()).thenReturn(auth);
+        SecurityContextHolder.setContext(securityContext);
+    }
+
     // ===================== TESTES DE SUCESSO =====================
 
     @Test
-    void deveCadastrarReclamacao() throws Exception {
-        when(reclamacaoService.cadastrarReclamacao(any(CadastroReclamacao.class), any(Usuario.class)))
-                .thenReturn(detalhamentoDto);
+    void deveListarReclamacoesComPaginacao() throws Exception {
+        DetalhamentoReclamacao reclamacao = new DetalhamentoReclamacao(
+                1L,
+                "Buraco na rua",
+                "Rua tal, centro",
+                CategoriaReclamacao.ASFALTO,
+                new Localizacao(10.0, 20.0),
+                StatusReclamacao.ABERTA,
+                LocalDateTime.now(),
+                1L,
+                "Fabiano Martins"
+        );
 
+        Page<DetalhamentoReclamacao> pagina = new PageImpl<>(List.of(reclamacao));
+        when(reclamacaoService.listarReclamacoes(any(Pageable.class))).thenReturn(pagina);
+
+        mockMvc.perform(get("/reclamacoes")
+                        .param("page", "0")
+                        .param("size", "10")
+                        .param("sort", "id,asc")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].id").value(1L))
+                .andExpect(jsonPath("$.content[0].titulo").value("Buraco na rua"))
+                .andExpect(jsonPath("$.content[0].categoriaReclamacao").value("ASFALTO"))
+                .andExpect(jsonPath("$.content[0].statusReclamacao").value("ABERTA"));
+
+        verify(reclamacaoService).listarReclamacoes(any(Pageable.class));
+    }
+
+    @Test
+    void deveCadastrarReclamacao() throws Exception {
+        // Mock do serviço
+        doReturn(detalhamentoDto)
+                .when(reclamacaoService)
+                .cadastrarReclamacao(any(CadastroReclamacao.class), any(Usuario.class));
+
+        // Executa a requisição simulando o usuário logado
         mockMvc.perform(post("/reclamacoes")
-                        .contentType("application/json")
-                        .content(toJson(cadastroDto)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(toJson(cadastroDto))
+                        .requestAttr("principal", usuarioLogado)) // aqui passamos o usuário
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(detalhamentoDto.id()))
                 .andExpect(jsonPath("$.titulo").value(detalhamentoDto.titulo()))
@@ -114,17 +162,7 @@ class ReclamacaoControllerTest {
         verify(reclamacaoService).cadastrarReclamacao(any(CadastroReclamacao.class), any(Usuario.class));
     }
 
-    @Test
-    void deveListarReclamacoes() throws Exception {
-        when(reclamacaoService.listarReclamacoes()).thenReturn(List.of(detalhamentoDto));
 
-        mockMvc.perform(get("/reclamacoes"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(detalhamentoDto.id()))
-                .andExpect(jsonPath("$[0].titulo").value(detalhamentoDto.titulo()));
-
-        verify(reclamacaoService).listarReclamacoes();
-    }
 
     @Test
     void deveBuscarReclamacaoPorId() throws Exception {
@@ -144,7 +182,7 @@ class ReclamacaoControllerTest {
                 .thenReturn(detalhamentoDto);
 
         mockMvc.perform(put("/reclamacoes/{id}", 1L)
-                        .contentType("application/json")
+                        .contentType(MediaType.APPLICATION_JSON)
                         .content(toJson(atualizacaoDto)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(detalhamentoDto.id()))
@@ -168,7 +206,7 @@ class ReclamacaoControllerTest {
     @Test
     void deveRetornar404AoBuscarReclamacaoInexistente() throws Exception {
         when(reclamacaoService.buscarPorId(99L))
-                .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND));
+                .thenThrow(new ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND));
 
         mockMvc.perform(get("/reclamacoes/{id}", 99L))
                 .andExpect(status().isNotFound());
@@ -177,25 +215,20 @@ class ReclamacaoControllerTest {
     @Test
     void deveRetornar404AoAtualizarReclamacaoInexistente() throws Exception {
         when(reclamacaoService.atualizarReclamacao(eq(99L), any(AtualizacaoReclamacao.class)))
-                .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND));
+                .thenThrow(new ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND));
 
         mockMvc.perform(put("/reclamacoes/{id}", 99L)
-                        .contentType("application/json")
+                        .contentType(MediaType.APPLICATION_JSON)
                         .content(toJson(atualizacaoDto)))
                 .andExpect(status().isNotFound());
     }
 
     @Test
     void deveRetornar400ParaCadastroInvalido() throws Exception {
-        CadastroReclamacao dtoInvalido = new CadastroReclamacao(
-                "",
-                "descricao curta",
-                null,
-                null
-        );
+        CadastroReclamacao dtoInvalido = new CadastroReclamacao("", "descricao curta", null, null);
 
         mockMvc.perform(post("/reclamacoes")
-                        .contentType("application/json")
+                        .contentType(MediaType.APPLICATION_JSON)
                         .content(toJson(dtoInvalido)))
                 .andExpect(status().isBadRequest());
     }
@@ -203,17 +236,17 @@ class ReclamacaoControllerTest {
     @Test
     void deveRetornar400AoAtualizarReclamacaoDesativada() throws Exception {
         when(reclamacaoService.atualizarReclamacao(eq(1L), any(AtualizacaoReclamacao.class)))
-                .thenThrow(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Não é possível atualizar uma reclamação desativada"));
+                .thenThrow(new ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "Não é possível atualizar uma reclamação desativada"));
 
         mockMvc.perform(put("/reclamacoes/{id}", 1L)
-                        .contentType("application/json")
+                        .contentType(MediaType.APPLICATION_JSON)
                         .content(toJson(atualizacaoDto)))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
     void deveRetornar400AoDesativarReclamacaoJaDesativada() throws Exception {
-        doThrow(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Reclamação já está desativada"))
+        doThrow(new ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "Reclamação já está desativada"))
                 .when(reclamacaoService).inativarReclamacao(1L);
 
         mockMvc.perform(delete("/reclamacoes/{id}", 1L))
