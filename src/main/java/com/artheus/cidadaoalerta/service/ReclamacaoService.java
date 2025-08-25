@@ -3,6 +3,7 @@ package com.artheus.cidadaoalerta.service;
 import com.artheus.cidadaoalerta.dto.AtualizacaoReclamacao;
 import com.artheus.cidadaoalerta.dto.CadastroReclamacao;
 import com.artheus.cidadaoalerta.dto.DetalhamentoReclamacao;
+import com.artheus.cidadaoalerta.dto.ReclamacaoPageResponse;
 import com.artheus.cidadaoalerta.mapper.ReclamacaoMapper;
 import com.artheus.cidadaoalerta.model.Reclamacao;
 import com.artheus.cidadaoalerta.model.Usuario;
@@ -10,13 +11,17 @@ import com.artheus.cidadaoalerta.repository.ReclamacaoRepository;
 import com.artheus.cidadaoalerta.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -63,10 +68,39 @@ public class ReclamacaoService {
     /**
      * Retorna todas as reclamações ativas.
      */
-    public Page<DetalhamentoReclamacao> listarReclamacoes(Pageable pageable) {
-        return reclamacaoRepository.findByAtivoTrue(pageable)
+    public ReclamacaoPageResponse<DetalhamentoReclamacao> listarReclamacoes(Pageable pageable) {
+        // Campos permitidos para ordenação
+        Set<String> camposPermitidos = Set.of("dataCriacao", "titulo", "status");
+
+        // Valida o sort enviado pelo usuário, se houver
+        Sort sortValido = pageable.getSort().stream()
+                .filter(order -> camposPermitidos.contains(order.getProperty()))
+                .findFirst()
+                .map(order -> Sort.by(order.getDirection(), order.getProperty()))
+                .orElse(Sort.by(Sort.Direction.DESC, "dataCriacao")); // ordenação padrão
+
+        // Garante um tamanho mínimo de página
+        int pageSize = pageable.getPageSize() <= 0 ? 10 : pageable.getPageSize();
+        int pageNumber = pageable.getPageNumber() < 0 ? 0 : pageable.getPageNumber();
+
+        Pageable pageableValido = PageRequest.of(pageNumber, pageSize, sortValido);
+
+        // Busca todas as reclamações ativas
+        Page<DetalhamentoReclamacao> page = reclamacaoRepository.findByAtivoTrue(pageableValido)
                 .map(reclamacaoMapper::toDetalhamentoDto);
+
+        return new ReclamacaoPageResponse<>(
+                page.getContent(),
+                page.getNumber(),
+                page.getSize(),
+                page.getTotalElements(),
+                page.getTotalPages(),
+                page.isLast()
+        );
     }
+
+
+
 
     /**
      * Busca uma reclamação pelo ID.

@@ -174,5 +174,39 @@ class UsuarioServiceTest {
         assertEquals("senhaCriptografada", usuario.getSenha());
     }
 
+    @Test
+    void naoDeveReHasharSenhaQuandoSenhaNaoForInformada() {
+        Usuario usuarioExistente = new Usuario(1L, "Fulano", "fulano@email.com",
+                "senhaHashExistente", true, Role.ROLE_USER, new ArrayList<>());
+
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuarioExistente));
+
+        AtualizacaoUsuario dto = new AtualizacaoUsuario("Fulano Atualizado", "novo@email.com", null);
+
+        usuarioService.atualizarUsuario(1L, dto);
+
+        // senha continua igual
+        assertEquals("senhaHashExistente", usuarioExistente.getSenha());
+        verify(passwordEncoder, never()).encode(anyString());
+    }
+
+    @Test
+    void deveReHasharSenhaQuandoInformada() {
+        Usuario usuarioExistente = new Usuario(1L, "Fulano", "fulano@email.com",
+                "senhaHashExistente", true, Role.ROLE_USER, new ArrayList<>());
+
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuarioExistente));
+        when(passwordEncoder.encode("novaSenha123")).thenReturn("novaSenhaHash");
+
+        AtualizacaoUsuario dto = new AtualizacaoUsuario("Fulano Atualizado", "novo@email.com", "novaSenha123");
+
+        usuarioService.atualizarUsuario(1L, dto);
+
+        // senha é atualizada com novo hash
+        assertEquals("novaSenhaHash", usuarioExistente.getSenha());
+        verify(passwordEncoder, times(1)).encode("novaSenha123");
+    }
+
+
 
 }

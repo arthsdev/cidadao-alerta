@@ -3,6 +3,7 @@ package com.artheus.cidadaoalerta.unit.service;
 import com.artheus.cidadaoalerta.dto.AtualizacaoReclamacao;
 import com.artheus.cidadaoalerta.dto.CadastroReclamacao;
 import com.artheus.cidadaoalerta.dto.DetalhamentoReclamacao;
+import com.artheus.cidadaoalerta.dto.ReclamacaoPageResponse;
 import com.artheus.cidadaoalerta.mapper.ReclamacaoMapper;
 import com.artheus.cidadaoalerta.model.Localizacao;
 import com.artheus.cidadaoalerta.model.Reclamacao;
@@ -123,16 +124,21 @@ class ReclamacaoServiceTest {
     @Test
     void deveListarReclamacoesAtivas() {
         Pageable pageable = PageRequest.of(0, 10);
+
         when(reclamacaoRepository.findByAtivoTrue(any(Pageable.class)))
                 .thenReturn(new PageImpl<>(Collections.singletonList(reclamacao)));
-        when(reclamacaoMapper.toDetalhamentoDto(reclamacao)).thenReturn(mock(DetalhamentoReclamacao.class));
 
-        Page<DetalhamentoReclamacao> page = reclamacaoService.listarReclamacoes(pageable);
-        List<DetalhamentoReclamacao> lista = page.getContent();
+        when(reclamacaoMapper.toDetalhamentoDto(reclamacao))
+                .thenReturn(mock(DetalhamentoReclamacao.class));
+
+        ReclamacaoPageResponse<DetalhamentoReclamacao> response = reclamacaoService.listarReclamacoes(pageable);
+
+        List<DetalhamentoReclamacao> lista = response.content(); // pega a lista de reclamações
 
         assertEquals(1, lista.size());
         verify(reclamacaoRepository).findByAtivoTrue(any(Pageable.class));
     }
+
 
     // ===================== TESTES DE BUSCA =====================
 

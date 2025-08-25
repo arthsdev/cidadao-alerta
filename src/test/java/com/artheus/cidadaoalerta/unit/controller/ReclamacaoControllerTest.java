@@ -111,6 +111,7 @@ class ReclamacaoControllerTest {
 
     @Test
     void deveListarReclamacoesComPaginacao() throws Exception {
+        // Cria uma reclamação de exemplo
         DetalhamentoReclamacao reclamacao = new DetalhamentoReclamacao(
                 1L,
                 "Buraco na rua",
@@ -123,9 +124,21 @@ class ReclamacaoControllerTest {
                 "Fabiano Martins"
         );
 
-        Page<DetalhamentoReclamacao> pagina = new PageImpl<>(List.of(reclamacao));
-        when(reclamacaoService.listarReclamacoes(any(Pageable.class))).thenReturn(pagina);
+        // Cria o objeto de resposta que o service retorna
+        ReclamacaoPageResponse<DetalhamentoReclamacao> response = new ReclamacaoPageResponse<>(
+                List.of(reclamacao), // conteúdo da página
+                0,                   // número da página
+                10,                  // tamanho da página
+                1,                   // total de elementos
+                1,                   // total de páginas
+                true                 // último?
+        );
 
+        // Mock do service para retornar o response
+        when(reclamacaoService.listarReclamacoes(any(Pageable.class)))
+                .thenReturn(response);
+
+        // Executa a requisição GET e verifica o JSON retornado
         mockMvc.perform(get("/reclamacoes")
                         .param("page", "0")
                         .param("size", "10")
@@ -137,6 +150,7 @@ class ReclamacaoControllerTest {
                 .andExpect(jsonPath("$.content[0].categoriaReclamacao").value("ASFALTO"))
                 .andExpect(jsonPath("$.content[0].statusReclamacao").value("ABERTA"));
 
+        // Verifica se o service foi chamado
         verify(reclamacaoService).listarReclamacoes(any(Pageable.class));
     }
 
@@ -252,4 +266,6 @@ class ReclamacaoControllerTest {
         mockMvc.perform(delete("/reclamacoes/{id}", 1L))
                 .andExpect(status().isBadRequest());
     }
+
+
 }

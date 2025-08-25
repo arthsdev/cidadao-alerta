@@ -24,7 +24,7 @@ public class UsuarioService {
 
     public DetalhamentoUsuario cadastrarUsuario(CadastroUsuario cadastroDto) {
         Usuario usuario = usuarioMapper.toEntity(cadastroDto);
-        usuario.setSenha(passwordEncoder.encode(usuario.getSenha())); // codifica senha
+        usuario.setSenha(passwordEncoder.encode(usuario.getSenha()));
         usuario.setPapel(Role.ROLE_USER);
 
         Usuario usuarioSalvo = usuarioRepository.save(usuario);
@@ -48,11 +48,10 @@ public class UsuarioService {
         Usuario usuario = usuarioRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
 
-        // Atualiza os campos via Mapper
+        // Atualiza campos opcionais via Mapper
         usuarioMapper.updateUsuarioFromDto(dto, usuario);
 
-
-        // Aqui evitamos re-hash de uma hash já existente para senha
+        // Só re-hash se a senha for fornecida
         if (dto.senha() != null && !dto.senha().isBlank()) {
             usuario.setSenha(passwordEncoder.encode(dto.senha()));
         }
@@ -73,5 +72,4 @@ public class UsuarioService {
                 .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
         return usuarioMapper.toDetalhamentoDto(usuario);
     }
-
 }
