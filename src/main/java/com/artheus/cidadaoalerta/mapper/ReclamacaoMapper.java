@@ -30,3 +30,4 @@ public interface ReclamacaoMapper {
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     void updateReclamacaoFromDto(AtualizacaoReclamacao dto, @MappingTarget Reclamacao reclamacao);
 }
+

@@ -1,6 +1,7 @@
 package com.artheus.cidadaoalerta.config;
 
 import com.artheus.cidadaoalerta.security.FiltroJwt;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -13,13 +14,10 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
+@RequiredArgsConstructor
 public class SecurityConfig {
 
     private final FiltroJwt filtroJwt;
-
-    public SecurityConfig(FiltroJwt filtroJwt) {
-        this.filtroJwt = filtroJwt;
-    }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -42,8 +40,6 @@ public class SecurityConfig {
                                 "/v3/api-docs/**",
                                 "/swagger-ui.html"
                         ).permitAll()
-
-                        // libera apenas autenticação e cadastro (POST de usuário)
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/usuarios/**").permitAll()
 
