@@ -17,5 +17,6 @@ public class AtualizacaoReclamacao {
         private String descricao;
 
         private CategoriaReclamacao categoriaReclamacao;
+
         private Localizacao localizacao;
 }
