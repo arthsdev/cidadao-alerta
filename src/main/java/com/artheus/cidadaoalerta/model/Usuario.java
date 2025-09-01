@@ -45,7 +45,7 @@ public class Usuario implements UserDetails {
     private Role papel = Role.ROLE_USER;
 
     @OneToMany(mappedBy = "usuario", cascade = CascadeType.ALL)
-    private List<Reclamacao> reclamacoes = new ArrayList<>();
+    private transient List<Reclamacao> reclamacoes = new ArrayList<>();
 
 
     @Override
