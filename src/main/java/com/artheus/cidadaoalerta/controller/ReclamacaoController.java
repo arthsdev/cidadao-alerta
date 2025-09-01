@@ -7,7 +7,7 @@ import com.artheus.cidadaoalerta.dto.ReclamacaoPageResponse;
 import com.artheus.cidadaoalerta.model.Usuario;
 import com.artheus.cidadaoalerta.model.enums.CategoriaReclamacao;
 import com.artheus.cidadaoalerta.model.enums.StatusReclamacao;
-import com.artheus.cidadaoalerta.service.CSVService;
+import com.artheus.cidadaoalerta.service.CsvService;
 import com.artheus.cidadaoalerta.service.ReclamacaoService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -40,7 +40,7 @@ import java.time.LocalDate;
 public class ReclamacaoController {
 
     private final ReclamacaoService reclamacaoService;
-    private final CSVService csvService;
+    private final CsvService csvService;
 
     // -------------------- CADASTRO --------------------
 
