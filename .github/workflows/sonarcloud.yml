@@ -1,8 +1,8 @@
-name: SonarCloud
+name: SonarCloud Analysis
 
 on:
   push:
-    branches: [ main ]
+    branches: [ '**' ]  # roda para qualquer branch
   pull_request:
     types: [opened, synchronize, reopened]
 
@@ -21,33 +21,22 @@ jobs:
           java-version: 17
           distribution: temurin
 
-      # 3. Cache Maven e Sonar
+      # 3. Cache Maven
       - name: Cache Maven packages
         uses: actions/cache@v3
         with:
           path: ~/.m2/repository
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
 
-      - name: Cache Sonar packages
-        uses: actions/cache@v3
-        with:
-          path: ~/.sonar/cache
-          key: ${{ runner.os }}-sonar
-
       # 4. Build e testes (gera cobertura Jacoco)
       - name: Build and run tests
         run: mvn clean verify
 
-      # 5. Análise SonarCloud com PR Decoration
+      # 5. SonarCloud analysis via Maven
       - name: Run SonarCloud analysis
-        uses: SonarSource/sonarcloud-github-action@v2
-        with:
-          projectBaseDir: .
-          args: >
-            -Dsonar.pullrequest.provider=github
-            -Dsonar.pullrequest.github.repository=${{ github.repository }}
-            -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
-            -Dsonar.pullrequest.branch=${{ github.head_ref }}
-            -Dsonar.pullrequest.base=${{ github.base_ref }}
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          mvn sonar:sonar \
+            -Dsonar.host.url=https://sonarcloud.io \
+            -Dsonar.login=${{ secrets.SONAR_TOKEN }} \
+            -Dsonar.verbose=true \
+            $([[ ${{ github.event_name }} == 'pull_request' ]] && echo "-Dsonar.pullrequest.key=${{ github.event.pull_request.number }} -Dsonar.pullrequest.branch=${{ github.head_ref }} -Dsonar.pullrequest.base=${{ github.base_ref }}")
