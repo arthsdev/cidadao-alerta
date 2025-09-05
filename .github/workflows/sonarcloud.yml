@@ -34,7 +34,7 @@ jobs:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
 
-      # 4. Build e testes (para gerar Jacoco)
+      # 4. Build e testes para Jacoco
       - name: Build and run tests
         run: mvn clean verify
 
