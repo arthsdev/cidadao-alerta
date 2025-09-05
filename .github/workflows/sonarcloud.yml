@@ -11,8 +11,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout do código
+      # 1. Checkout do código com histórico completo
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0   # Necessário para que SonarCloud detecte branches e PR corretamente
 
       # 2. Configurar JDK 17
       - name: Set up JDK 17
@@ -21,24 +23,25 @@ jobs:
           java-version: 17
           distribution: temurin
 
-      # 3. Cache Maven e Sonar
+      # 3. Cache Maven
       - name: Cache Maven packages
         uses: actions/cache@v3
         with:
           path: ~/.m2/repository
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
 
+      # 4. Cache Sonar
       - name: Cache Sonar packages
         uses: actions/cache@v3
         with:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
 
-      # 4. Build e testes para Jacoco
+      # 5. Build e testes (para gerar Jacoco)
       - name: Build and run tests
         run: mvn clean verify
 
-      # 5. SonarCloud Analysis (Maven)
+      # 6. SonarCloud Analysis (Maven)
       - name: SonarCloud Analysis
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
