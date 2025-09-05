@@ -1,8 +1,8 @@
-name: SonarCloud Analysis
+name: SonarCloud
 
 on:
   push:
-    branches: [ '**' ]  # roda para qualquer branch
+    branches: [ main ]
   pull_request:
     types: [opened, synchronize, reopened]
 
@@ -11,32 +11,45 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Pega o código
+      # 1. Checkout do código
       - uses: actions/checkout@v3
 
-      # 2. Configura JDK 17
+      # 2. Configurar JDK 17
       - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
           java-version: 17
           distribution: temurin
 
-      # 3. Cache Maven
+      # 3. Cache Maven e Sonar
       - name: Cache Maven packages
         uses: actions/cache@v3
         with:
           path: ~/.m2/repository
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
 
-      # 4. Build e testes (gera cobertura Jacoco)
+      - name: Cache Sonar packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+
+      # 4. Build e testes (para gerar Jacoco)
       - name: Build and run tests
         run: mvn clean verify
 
-      # 5. SonarCloud analysis via Maven
-      - name: Run SonarCloud analysis
+      # 5. SonarCloud Analysis (Maven)
+      - name: SonarCloud Analysis
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
           mvn sonar:sonar \
+            -Dsonar.projectKey=arthsdev_cidadao-alerta \
+            -Dsonar.organization=arthsdev \
             -Dsonar.host.url=https://sonarcloud.io \
-            -Dsonar.login=${{ secrets.SONAR_TOKEN }} \
-            -Dsonar.verbose=true \
-            $([[ ${{ github.event_name }} == 'pull_request' ]] && echo "-Dsonar.pullrequest.key=${{ github.event.pull_request.number }} -Dsonar.pullrequest.branch=${{ github.head_ref }} -Dsonar.pullrequest.base=${{ github.base_ref }}")
+            -Dsonar.java.binaries=target/classes \
+            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
+            -Dsonar.pullrequest.key=${{ github.event.pull_request.number || '' }} \
+            -Dsonar.pullrequest.branch=${{ github.head_ref || '' }} \
+            -Dsonar.pullrequest.base=${{ github.base_ref || '' }} \
+            -Dsonar.verbose=true
