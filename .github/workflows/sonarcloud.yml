@@ -38,13 +38,12 @@ jobs:
       - name: Build and run tests
         run: mvn clean verify
 
-      # 5. Análise SonarCloud com Pull Request Decoration
+      # 5. Análise SonarCloud com PR Decoration
       - name: Run SonarCloud analysis
         uses: SonarSource/sonarcloud-github-action@v2
         with:
           projectBaseDir: .
           args: >
-            -Dsonar.verbose=true
             -Dsonar.pullrequest.provider=github
             -Dsonar.pullrequest.github.repository=${{ github.repository }}
             -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
