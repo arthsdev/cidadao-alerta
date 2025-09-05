@@ -2,7 +2,7 @@ name: SonarCloud
 
 on:
   push:
-    branches: [ main ]   # Dispara apenas no push para main
+    branches: [ main ]
   pull_request:
     types: [opened, synchronize, reopened]
 
@@ -21,7 +21,7 @@ jobs:
           java-version: 17
           distribution: temurin
 
-      # 3. Cache do Maven e do Sonar
+      # 3. Cache Maven e Sonar
       - name: Cache Maven packages
         uses: actions/cache@v3
         with:
@@ -34,14 +34,21 @@ jobs:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
 
-      # 4. Build e testes para gerar cobertura
+      # 4. Build e testes (gera cobertura Jacoco)
       - name: Build and run tests
         run: mvn clean verify
 
-      # 5. Executa análise no SonarCloud (automatic analysis)
+      # 5. Análise SonarCloud com Pull Request Decoration
       - name: Run SonarCloud analysis
         uses: SonarSource/sonarcloud-github-action@v2
         with:
           projectBaseDir: .
+          args: >
+            -Dsonar.verbose=true
+            -Dsonar.pullrequest.provider=github
+            -Dsonar.pullrequest.github.repository=${{ github.repository }}
+            -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
+            -Dsonar.pullrequest.branch=${{ github.head_ref }}
+            -Dsonar.pullrequest.base=${{ github.base_ref }}
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
