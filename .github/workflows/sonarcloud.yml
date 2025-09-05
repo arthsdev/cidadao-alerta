@@ -2,7 +2,7 @@ name: SonarCloud
 
 on:
   push:
-    branches: [ main ]  # dispara só no push para main
+    branches: [ main ]  # dispara no push para main
   pull_request:
     types: [opened, synchronize, reopened]
 
@@ -21,28 +21,20 @@ jobs:
           java-version: 17
           distribution: temurin
 
-      # 3. Cache do Maven
+      # 3. Cache Maven
       - name: Cache Maven packages
         uses: actions/cache@v3
         with:
           path: ~/.m2/repository
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
 
-      # 4. Cache do Sonar
-      - name: Cache Sonar packages
-        uses: actions/cache@v3
-        with:
-          path: ~/.sonar/cache
-          key: ${{ runner.os }}-sonar
-
-      # 5. Build e testes
-      - name: Build and run tests
-        run: mvn clean verify
-
-      # 6. Análise SonarCloud (automatic analysis)
-      - name: Run SonarCloud analysis
-        uses: SonarSource/sonarcloud-github-action@v2
-        with:
-          projectBaseDir: .
+      # 4. Build, testes e análise SonarCloud
+      - name: Build, test and SonarCloud analysis
+        run: mvn clean verify sonar:sonar \
+          -Dsonar.projectKey=arthsdev_cidadao-alerta \
+          -Dsonar.organization=arthsdev \
+          -Dsonar.host.url=https://sonarcloud.io \
+          -Dsonar.java.binaries=target/classes \
+          -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
