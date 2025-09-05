@@ -1,11 +1,12 @@
 package com.artheus.cidadaoalerta.service;
 
-import com.artheus.cidadaoalerta.model.Usuario;
-import com.artheus.cidadaoalerta.model.enums.Role;
 import com.artheus.cidadaoalerta.dto.AtualizacaoUsuario;
 import com.artheus.cidadaoalerta.dto.CadastroUsuario;
 import com.artheus.cidadaoalerta.dto.DetalhamentoUsuario;
+import com.artheus.cidadaoalerta.exception.usuario.UsuarioNaoEncontradoException;
 import com.artheus.cidadaoalerta.mapper.UsuarioMapper;
+import com.artheus.cidadaoalerta.model.Usuario;
+import com.artheus.cidadaoalerta.model.enums.Role;
 import com.artheus.cidadaoalerta.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -39,14 +40,12 @@ public class UsuarioService {
     }
 
     public DetalhamentoUsuario buscarPorId(Long id) {
-        Usuario usuario = usuarioRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+        Usuario usuario = buscarUsuarioPorId(id);
         return usuarioMapper.toDetalhamentoDto(usuario);
     }
 
     public DetalhamentoUsuario atualizarUsuario(Long id, AtualizacaoUsuario dto) {
-        Usuario usuario = usuarioRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+        Usuario usuario = buscarUsuarioPorId(id);
 
         // Atualiza campos opcionais via Mapper
         usuarioMapper.updateUsuarioFromDto(dto, usuario);
@@ -61,15 +60,20 @@ public class UsuarioService {
     }
 
     public void desativarUsuario(Long id) {
-        Usuario usuario = usuarioRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+        Usuario usuario = buscarUsuarioPorId(id);
         usuario.setAtivo(false);
         usuarioRepository.save(usuario);
     }
 
     public DetalhamentoUsuario buscarPorEmail(String email) {
         Usuario usuario = usuarioRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+                .orElseThrow(() -> new UsuarioNaoEncontradoException(email));
         return usuarioMapper.toDetalhamentoDto(usuario);
+    }
+
+    // ================= MÉTODO AUXILIAR PRIVADO =================
+    private Usuario buscarUsuarioPorId(Long id) {
+        return usuarioRepository.findById(id)
+                .orElseThrow(UsuarioNaoEncontradoException::new);
     }
 }

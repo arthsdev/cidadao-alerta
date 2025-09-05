@@ -30,7 +30,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @RestController
 @RequestMapping("/reclamacoes")
@@ -56,7 +56,7 @@ public class ReclamacaoController {
             @RequestBody @Valid CadastroReclamacao cadastroDto,
             @AuthenticationPrincipal Usuario usuario) {
 
-        DetalhamentoReclamacao reclamacao = reclamacaoService.cadastrarReclamacao(cadastroDto, usuario);
+        DetalhamentoReclamacao reclamacao = reclamacaoService.cadastrarReclamacao(cadastroDto);
         URI uri = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}")
                 .buildAndExpand(reclamacao.id())
@@ -109,6 +109,7 @@ public class ReclamacaoController {
         return ResponseEntity.ok(reclamacaoService.atualizarReclamacao(id, dto));
     }
 
+    // -------------------- ATUALIZAÇÃO PARCIAL --------------------
     @PatchMapping("/{id}")
     @Operation(summary = "Atualizar parcialmente uma reclamação", description = "Atualiza parcialmente os dados de uma reclamação existente. Requer autenticação")
     @ApiResponses({
@@ -151,8 +152,8 @@ public class ReclamacaoController {
             @RequestParam(required = false) StatusReclamacao status,
             @RequestParam(required = false) Long usuarioId,
             @RequestParam(required = false) CategoriaReclamacao categoria,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataInicio,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataFim
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDateTime dataInicio,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDateTime dataFim
     ) {
         return csvService.gerarResponseCsv(status, usuarioId, categoria, dataInicio, dataFim);
     }

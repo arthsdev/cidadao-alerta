@@ -28,7 +28,8 @@ import java.util.List;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -36,10 +37,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Transactional
 class ReclamacaoIntegrationTest {
 
-    @Autowired private MockMvc mockMvc;
-    @Autowired private UsuarioRepository usuarioRepository;
-    @Autowired private ReclamacaoRepository reclamacaoRepository;
-    @Autowired private ObjectMapper objectMapper;
+    @Autowired
+    private MockMvc mockMvc;
+    @Autowired
+    private UsuarioRepository usuarioRepository;
+    @Autowired
+    private ReclamacaoRepository reclamacaoRepository;
+    @Autowired
+    private ObjectMapper objectMapper;
 
     private Usuario usuario;
     private Usuario admin;
@@ -50,7 +55,7 @@ class ReclamacaoIntegrationTest {
         usuarioRepository.deleteAll();
 
         usuario = criarUsuario("Usuario Teste", "usuario@email.com", Role.ROLE_USER);
-        admin   = criarUsuario("Admin Teste", "admin@email.com", Role.ROLE_ADMIN);
+        admin = criarUsuario("Admin Teste", "admin@email.com", Role.ROLE_ADMIN);
     }
 
     // --------------------- HELPERS ---------------------
@@ -223,4 +228,6 @@ class ReclamacaoIntegrationTest {
         deleteReclamacao(r.getId(), usuario)
                 .andExpect(status().isForbidden());
     }
+
+
 }

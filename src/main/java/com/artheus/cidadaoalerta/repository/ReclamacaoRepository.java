@@ -9,7 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -17,19 +17,29 @@ public interface ReclamacaoRepository extends JpaRepository<Reclamacao, Long> {
 
     // ======================= MÉTODOS PÚBLICOS SIMPLES =======================
 
-    /** Lista todas as reclamações ativas (ativo = true). */
+    /**
+     * Lista todas as reclamações ativas (ativo = true).
+     */
     List<Reclamacao> findByAtivoTrue();
 
-    /** Lista reclamações ativas com suporte a paginação. */
+    /**
+     * Lista reclamações ativas com suporte a paginação.
+     */
     Page<Reclamacao> findByAtivoTrue(Pageable pageable);
 
-    /** Verifica se uma reclamação pertence a um usuário específico (por e-mail). */
+    /**
+     * Verifica se uma reclamação pertence a um usuário específico (por e-mail).
+     */
     boolean existsByIdAndUsuario_Email(Long reclamacaoId, String email);
 
-    /** Busca uma reclamação (ativa ou inativa) pelo título e ID do usuário. */
+    /**
+     * Busca uma reclamação (ativa ou inativa) pelo título e ID do usuário.
+     */
     Optional<Reclamacao> findByTituloAndUsuarioId(String titulo, Long usuarioId);
 
-    /** Busca uma reclamação ativa pelo título e ID do usuário. */
+    /**
+     * Busca uma reclamação ativa pelo título e ID do usuário.
+     */
     Optional<Reclamacao> findByTituloAndUsuarioIdAndAtivoTrue(String titulo, Long usuarioId);
 
     // ======================= CONSULTAS POR FILTROS ESPECÍFICOS =======================
@@ -44,13 +54,13 @@ public interface ReclamacaoRepository extends JpaRepository<Reclamacao, Long> {
             CategoriaReclamacao categoria
     );
 
-    List<Reclamacao> findByDataCriacaoBetween(LocalDate startDate, LocalDate endDate);
+    List<Reclamacao> findByDataCriacaoBetween(LocalDateTime startDate, LocalDateTime endDate);
 
     List<Reclamacao> findByStatusAndUsuarioIdAndDataCriacaoBetween(
             StatusReclamacao status,
             Long usuarioId,
-            LocalDate startDate,
-            LocalDate endDate
+            LocalDateTime startDate,
+            LocalDateTime endDate
     );
 
     List<Reclamacao> findByCategoriaReclamacao(CategoriaReclamacao categoria);
@@ -78,8 +88,8 @@ public interface ReclamacaoRepository extends JpaRepository<Reclamacao, Long> {
     List<Reclamacao> buscarReclamacoesFiltradas(
             @Param("status") StatusReclamacao status,
             @Param("usuarioId") Long usuarioId,
-            @Param("startDate") LocalDate startDate,
-            @Param("endDate") LocalDate endDate
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate
     );
 
     /**
@@ -97,7 +107,7 @@ public interface ReclamacaoRepository extends JpaRepository<Reclamacao, Long> {
             @Param("status") StatusReclamacao status,
             @Param("usuarioId") Long usuarioId,
             @Param("categoria") CategoriaReclamacao categoria,
-            @Param("startDate") LocalDate startDate,
-            @Param("endDate") LocalDate endDate
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate
     );
 }

@@ -1,11 +1,14 @@
 package com.artheus.cidadaoalerta.config;
 
 import com.artheus.cidadaoalerta.security.FiltroJwt;
+import com.artheus.cidadaoalerta.security.UsuarioDetailsService;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -18,38 +21,52 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final FiltroJwt filtroJwt;
-
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
-
-    @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {
-        return authConfig.getAuthenticationManager();
-    }
+    private final UsuarioDetailsService usuarioDetailsService;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        // libera swagger
-                        .requestMatchers(
-                                "/swagger-ui/**",
-                                "/v3/api-docs/**",
-                                "/swagger-ui.html"
-                        ).permitAll()
+                        // rotas públicas
+                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/usuarios/**").permitAll()
 
-                        // qualquer outra rota precisa estar autenticada
+                        // apenas ADMIN
+                        .requestMatchers(HttpMethod.GET, "/reclamacoes/export").hasRole("ADMIN")
+
+                        // qualquer outra rota exige autenticação
                         .anyRequest().authenticated()
+                )
+                .exceptionHandling(ex -> ex
+                        // 401 → não autenticado
+                        .authenticationEntryPoint((req, res, e) ->
+                                res.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized"))
+                        // 403 → autenticado, mas sem permissão
+                        .accessDeniedHandler((req, res, e) ->
+                                res.sendError(HttpServletResponse.SC_FORBIDDEN, "Forbidden"))
                 )
                 .addFilterBefore(filtroJwt, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
+    @Bean
+    public DaoAuthenticationProvider authenticationProvider() {
+        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
+        authProvider.setUserDetailsService(usuarioDetailsService);
+        authProvider.setPasswordEncoder(passwordEncoder());
+        return authProvider;
+    }
 
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+        return config.getAuthenticationManager();
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
 }
