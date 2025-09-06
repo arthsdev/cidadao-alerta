@@ -54,6 +54,10 @@ public class ReclamacaoService {
         return mapearParaResponse(page);
     }
 
+    // TODO: criar filtros por data (dataInicio e dataFim)
+    // - dataInicio: incluir registros a partir desta data (00:00:00)
+    // - dataFim: incluir registros até esta data (23:59:59)
+
     public DetalhamentoReclamacao buscarPorId(Long id) {
         return reclamacaoMapper.toDetalhamentoDto(buscarReclamacaoAtivaPorId(id));
     }
@@ -146,4 +150,7 @@ public class ReclamacaoService {
         return new ReclamacaoPageResponse<>(page.getContent(), page.getNumber(), page.getSize(),
                 page.getTotalElements(), page.getTotalPages(), page.isLast());
     }
+
+
+
 }

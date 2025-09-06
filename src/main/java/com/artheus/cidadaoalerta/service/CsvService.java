@@ -18,23 +18,35 @@ import java.io.ByteArrayOutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 /**
  * Serviço responsável por gerar arquivos CSV de reclamações.
+ * Permite filtrar por status, usuário, categoria e período de datas.
+ * Garante CSV UTF-8 com BOM e cabeçalho descritivo.
  */
 @Service
 @RequiredArgsConstructor
 public class CsvService {
 
     private final ReclamacaoRepository repository;
-    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+    // Formato de data/hora utilizado nas linhas do CSV
+    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+    // ===================== API PÚBLICA =====================
 
     /**
-     * Gera um CSV de reclamações aplicando os filtros fornecidos.
+     * Gera um ResponseEntity contendo o arquivo CSV das reclamações filtradas.
+     *
+     * @param status    Filtro opcional pelo status da reclamação
+     * @param usuarioId Filtro opcional pelo ID do usuário
+     * @param categoria Filtro opcional pela categoria da reclamação
+     * @param dataInicio Filtro opcional para data de criação mínima
+     * @param dataFim   Filtro opcional para data de criação máxima
+     * @return ResponseEntity com o CSV pronto para download
      */
     public ResponseEntity<Resource> gerarResponseCsv(
             StatusReclamacao status,
@@ -43,26 +55,22 @@ public class CsvService {
             LocalDateTime dataInicio,
             LocalDateTime dataFim
     ) {
-        List<Reclamacao> reclamacoes = buscarReclamacoesFiltradas(status, usuarioId, categoria, dataInicio, dataFim);
+        // Busca as reclamações aplicando todos os filtros
+        List<Reclamacao> reclamacoes = repository.buscarReclamacoesPorFiltrosCompletos(
+                status, usuarioId, categoria, dataInicio, dataFim
+        );
+        // Monta a resposta HTTP com o CSV
         return montarResponseCsv(reclamacoes);
     }
 
-    public List<Reclamacao> buscarReclamacoesFiltradas(
-            StatusReclamacao status,
-            Long usuarioId,
-            CategoriaReclamacao categoria,
-            LocalDateTime dataInicio,
-            LocalDateTime dataFim
-    ) {
-        return repository.buscarReclamacoesPorFiltrosCompletos(
-                status,
-                usuarioId,
-                categoria,
-                dataInicio,
-                dataFim
-        );
-    }
+    // ===================== MÉTODOS PRIVADOS =====================
 
+    /**
+     * Cria um ResponseEntity para download do CSV.
+     *
+     * @param reclamacoes Lista de reclamações que serão exportadas
+     * @return ResponseEntity contendo o arquivo CSV
+     */
     private ResponseEntity<Resource> montarResponseCsv(List<Reclamacao> reclamacoes) {
         ByteArrayInputStream csvStream = gerarCsv(reclamacoes);
         InputStreamResource file = new InputStreamResource(csvStream);
@@ -73,13 +81,24 @@ public class CsvService {
                 .body(file);
     }
 
+    /**
+     * Converte a lista de reclamações em um CSV dentro de um ByteArrayInputStream.
+     *
+     * @param reclamacoes Lista de reclamações
+     * @return CSV como ByteArrayInputStream
+     */
     private ByteArrayInputStream gerarCsv(List<Reclamacao> reclamacoes) {
         try (ByteArrayOutputStream out = new ByteArrayOutputStream();
              OutputStreamWriter osWriter = new OutputStreamWriter(out, StandardCharsets.UTF_8);
              PrintWriter writer = new PrintWriter(osWriter)) {
 
+            // Escreve BOM UTF-8 para compatibilidade com Excel
             escreverBomUtf8(out);
+
+            // Escreve a linha de cabeçalho
             escreverCabecalho(writer);
+
+            // Escreve cada reclamação como uma linha no CSV
             escreverLinhas(writer, reclamacoes);
 
             writer.flush();
@@ -89,20 +108,42 @@ public class CsvService {
         }
     }
 
+    /**
+     * Adiciona o BOM UTF-8 no início do arquivo para que seja lido corretamente no Excel.
+     *
+     * @param out ByteArrayOutputStream onde o BOM será escrito
+     */
     private void escreverBomUtf8(ByteArrayOutputStream out) {
         out.write(0xEF);
         out.write(0xBB);
         out.write(0xBF);
     }
 
+    /**
+     * Escreve a linha de cabeçalho do CSV.
+     *
+     * @param writer PrintWriter para escrever no CSV
+     */
     private void escreverCabecalho(PrintWriter writer) {
         writer.println("id;titulo;descricao;categoria;status;latitude;longitude;dataCriacao;usuario");
     }
 
+    /**
+     * Escreve cada reclamação como uma linha no CSV.
+     *
+     * @param writer      PrintWriter para escrever no CSV
+     * @param reclamacoes Lista de reclamações
+     */
     private void escreverLinhas(PrintWriter writer, List<Reclamacao> reclamacoes) {
         reclamacoes.forEach(r -> writer.println(converterReclamacaoParaLinhaCsv(r)));
     }
 
+    /**
+     * Converte uma reclamação em uma linha CSV, escapando caracteres especiais.
+     *
+     * @param r Reclamacao a ser convertida
+     * @return Linha CSV como String
+     */
     private String converterReclamacaoParaLinhaCsv(Reclamacao r) {
         String lat = r.getLocalizacao() != null && r.getLocalizacao().getLatitude() != null
                 ? r.getLocalizacao().getLatitude().toString() : "";
@@ -117,13 +158,19 @@ public class CsvService {
                 r.getStatus() != null ? r.getStatus().name() : "",
                 lat,
                 lon,
-                r.getDataCriacao() != null ? r.getDataCriacao().format(DATE_FORMATTER) : "",
+                r.getDataCriacao() != null ? r.getDataCriacao().format(DATE_TIME_FORMATTER) : "",
                 r.getUsuario() != null ? escaparCsv(r.getUsuario().getNome()) : ""
         };
 
         return String.join(";", campos);
     }
 
+    /**
+     * Escapa caracteres especiais do CSV, como ponto e vírgula, aspas e quebras de linha.
+     *
+     * @param valor Texto a ser escapado
+     * @return Texto escapado pronto para o CSV
+     */
     private String escaparCsv(String valor) {
         if (valor == null) return "";
         String escaped = valor.replace("\"", "\"\"");

@@ -1,6 +1,7 @@
 package com.artheus.cidadaoalerta.model;
 
 import com.artheus.cidadaoalerta.model.enums.Role;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
@@ -45,12 +46,11 @@ public class Usuario implements UserDetails {
     private Role papel = Role.ROLE_USER;
 
     @OneToMany(mappedBy = "usuario", cascade = CascadeType.ALL)
-    private transient List<Reclamacao> reclamacoes = new ArrayList<>();
-
+    @JsonManagedReference //controla o lado "pai" da relação
+    private List<Reclamacao> reclamacoes = new ArrayList<>();
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        // converte Role em GrantedAuthority
         List<GrantedAuthority> authorities = new ArrayList<>();
         authorities.add(new SimpleGrantedAuthority(papel.name()));
         return authorities;

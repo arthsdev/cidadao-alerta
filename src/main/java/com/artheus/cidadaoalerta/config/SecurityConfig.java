@@ -26,19 +26,30 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+                // desabilita CSRF (API REST)
                 .csrf(csrf -> csrf.disable())
+
+                // configura autorização das rotas
                 .authorizeHttpRequests(auth -> auth
-                        // rotas públicas
-                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
-                        .requestMatchers("/auth/**").permitAll()
+                        // rotas públicas (Swagger e autenticação)
+                        .requestMatchers(
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/v3/api-docs/**",
+                                "/auth/**"
+                        ).permitAll()
+
+                        // cadastro de usuário é público
                         .requestMatchers(HttpMethod.POST, "/usuarios/**").permitAll()
 
-                        // apenas ADMIN
+                        // somente ADMIN pode exportar CSV
                         .requestMatchers(HttpMethod.GET, "/reclamacoes/export").hasRole("ADMIN")
 
                         // qualquer outra rota exige autenticação
                         .anyRequest().authenticated()
                 )
+
+                // tratamento centralizado para erros de autenticação/autorização
                 .exceptionHandling(ex -> ex
                         // 401 → não autenticado
                         .authenticationEntryPoint((req, res, e) ->
@@ -47,6 +58,8 @@ public class SecurityConfig {
                         .accessDeniedHandler((req, res, e) ->
                                 res.sendError(HttpServletResponse.SC_FORBIDDEN, "Forbidden"))
                 )
+
+                // aplica o filtro JWT antes do filtro padrão do Spring
                 .addFilterBefore(filtroJwt, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

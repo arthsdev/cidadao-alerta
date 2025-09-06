@@ -83,257 +83,51 @@ public class CsvIntegrationTest {
         return reclamacaoRepository.save(r);
     }
 
-    // ================== TESTES ==================
-
-    @Test
-    void deveGerarCsvComUmaReclamacao() throws Exception {
-        Reclamacao reclamacao = criarReclamacao(
-                usuario1,
-                "Título válido para teste CSV",
-                "Descrição válida para teste CSV com mais de 20 caracteres",
-                CategoriaReclamacao.SANEAMENTO,
-                StatusReclamacao.ABERTA,
-                LocalDateTime.now()
-        );
-
-        ResponseEntity<Resource> response = csvService.gerarResponseCsv(
-                StatusReclamacao.ABERTA,
-                reclamacao.getUsuario().getId(),
-                CategoriaReclamacao.SANEAMENTO,
-                LocalDateTime.now().minusDays(1),
-                LocalDateTime.now().plusDays(1)
-        );
-
-        validarCsvComUmaLinha(response, reclamacao);
+    // ================== BUILDER ==================
+    private ReclamacaoBuilder reclamacaoBuilder() {
+        return new ReclamacaoBuilder();
     }
 
-    @Test
-    void deveRetornarVazioSeDataForaDoIntervalo() throws Exception {
-        criarReclamacao(usuario1,
-                "Título válido teste vazio",
-                "Descrição válida teste vazio com mais de 20 caracteres",
-                CategoriaReclamacao.SANEAMENTO,
-                StatusReclamacao.ABERTA,
-                LocalDateTime.now()
-        );
+    private class ReclamacaoBuilder {
+        private Usuario usuario = usuario1;
+        private String titulo = "Título padrão";
+        private String descricao = "Descrição padrão com mais de 20 caracteres";
+        private CategoriaReclamacao categoria = CategoriaReclamacao.SANEAMENTO;
+        private StatusReclamacao status = StatusReclamacao.ABERTA;
+        private LocalDateTime dataCriacao = LocalDateTime.now();
 
-        ResponseEntity<Resource> response = csvService.gerarResponseCsv(
-                null,
-                null,
-                null,
-                LocalDateTime.now().plusDays(1),
-                LocalDateTime.now().plusDays(2)
-        );
+        ReclamacaoBuilder usuario(Usuario u) { this.usuario = u; return this; }
+        ReclamacaoBuilder titulo(String t) { this.titulo = t; return this; }
+        ReclamacaoBuilder descricao(String d) { this.descricao = d; return this; }
+        ReclamacaoBuilder categoria(CategoriaReclamacao c) { this.categoria = c; return this; }
+        ReclamacaoBuilder status(StatusReclamacao s) { this.status = s; return this; }
+        ReclamacaoBuilder dataCriacao(LocalDateTime dt) { this.dataCriacao = dt; return this; }
 
-        try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(response.getBody().getInputStream(), StandardCharsets.UTF_8))) {
-
-            String header = removerBom(reader.readLine());
-            assertEquals("id;titulo;descricao;categoria;status;latitude;longitude;dataCriacao;usuario", header);
-
-            String registro = lerRegistroCsv(reader);
-            assertNull(registro, "Não deve haver registros no CSV");
-        }
-    }
-
-    @Test
-    void deveGerarCsvComDatasComoLocalDateConvertidasParaLocalDateTime() throws Exception {
-        Reclamacao reclamacao = criarReclamacao(
-                usuario1,
-                "Título datas válido",
-                "Descrição datas válida com mais de 20 caracteres",
-                CategoriaReclamacao.SANEAMENTO,
-                StatusReclamacao.ABERTA,
-                LocalDateTime.now()
-        );
-
-        LocalDate dataInicio = LocalDate.now().minusDays(1);
-        LocalDate dataFim = LocalDate.now().plusDays(1);
-
-        ResponseEntity<Resource> response = csvService.gerarResponseCsv(
-                StatusReclamacao.ABERTA,
-                reclamacao.getUsuario().getId(),
-                CategoriaReclamacao.SANEAMENTO,
-                dataInicio.atStartOfDay(),
-                dataFim.atTime(23, 59, 59)
-        );
-
-        validarCsvComUmaLinha(response, reclamacao);
-    }
-
-    @Test
-    void deveGerarCsvComMultiplasReclamacoes() throws Exception {
-        Reclamacao r1 = criarReclamacao(usuario1,
-                "Título 1 válido",
-                "Descrição 1 válida com mais de 20 caracteres",
-                CategoriaReclamacao.SANEAMENTO,
-                StatusReclamacao.ABERTA,
-                LocalDateTime.now());
-
-        Reclamacao r2 = criarReclamacao(usuario1,
-                "Título 2 válido",
-                "Descrição 2 válida com mais de 20 caracteres",
-                CategoriaReclamacao.ILUMINACAO,
-                StatusReclamacao.RESOLVIDA,
-                LocalDateTime.now());
-
-        ResponseEntity<Resource> response = csvService.gerarResponseCsv(
-                null,
-                usuario1.getId(),
-                null,
-                LocalDateTime.now().minusDays(1),
-                LocalDateTime.now().plusDays(1)
-        );
-
-        try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(response.getBody().getInputStream(), StandardCharsets.UTF_8))) {
-
-            String header = removerBom(reader.readLine());
-            assertEquals("id;titulo;descricao;categoria;status;latitude;longitude;dataCriacao;usuario", header);
-
-            List<String> registros = new ArrayList<>();
-            String linha;
-            while ((linha = lerRegistroCsv(reader)) != null) {
-                registros.add(linha);
-            }
-
-            assertEquals(2, registros.size());
-        }
-    }
-
-    @Test
-    void deveFiltrarPorStatus() throws Exception {
-        criarReclamacao(usuario1,
-                "Título ABERTA válido",
-                "Descrição ABERTA válida com mais de 20 caracteres",
-                CategoriaReclamacao.SANEAMENTO,
-                StatusReclamacao.ABERTA,
-                LocalDateTime.now());
-
-        criarReclamacao(usuario1,
-                "Título RESOLVIDA válido",
-                "Descrição RESOLVIDA válida com mais de 20 caracteres",
-                CategoriaReclamacao.SANEAMENTO,
-                StatusReclamacao.RESOLVIDA,
-                LocalDateTime.now());
-
-        ResponseEntity<Resource> response = csvService.gerarResponseCsv(
-                StatusReclamacao.ABERTA,
-                null,
-                null,
-                LocalDateTime.now().minusDays(1),
-                LocalDateTime.now().plusDays(1)
-        );
-
-        try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(response.getBody().getInputStream(), StandardCharsets.UTF_8))) {
-
-            reader.readLine(); // cabeçalho
-            String registro = lerRegistroCsv(reader);
-            assertNotNull(registro);
-            assertTrue(registro.contains("ABERTA"));
-        }
-    }
-
-    @Test
-    void deveFiltrarPorUsuario() throws Exception {
-        Reclamacao r1 = criarReclamacao(usuario1,
-                "Título João válido",
-                "Descrição João válida com mais de 20 caracteres",
-                CategoriaReclamacao.SANEAMENTO,
-                StatusReclamacao.ABERTA,
-                LocalDateTime.now());
-
-        Reclamacao r2 = criarReclamacao(usuario2,
-                "Título Maria válido",
-                "Descrição Maria válida com mais de 20 caracteres",
-                CategoriaReclamacao.SANEAMENTO,
-                StatusReclamacao.ABERTA,
-                LocalDateTime.now());
-
-        ResponseEntity<Resource> response = csvService.gerarResponseCsv(
-                null,
-                usuario1.getId(),
-                null,
-                LocalDateTime.now().minusDays(1),
-                LocalDateTime.now().plusDays(1)
-        );
-
-        try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(response.getBody().getInputStream(), StandardCharsets.UTF_8))) {
-
-            reader.readLine(); // cabeçalho
-            String registro = lerRegistroCsv(reader);
-            assertNotNull(registro);
-            assertTrue(registro.contains("João"));
-            assertFalse(registro.contains("Maria"));
-        }
-    }
-
-    @Test
-    void deveFiltrarPorCategoria() throws Exception {
-        criarReclamacao(usuario1,
-                "Título SANEAMENTO válido",
-                "Descrição SANEAMENTO válida com mais de 20 caracteres",
-                CategoriaReclamacao.SANEAMENTO,
-                StatusReclamacao.ABERTA,
-                LocalDateTime.now());
-
-        criarReclamacao(usuario1,
-                "Título LIXO válido",
-                "Descrição LIXO válida com mais de 20 caracteres",
-                CategoriaReclamacao.SEGURANCA,
-                StatusReclamacao.ABERTA,
-                LocalDateTime.now());
-
-        ResponseEntity<Resource> response = csvService.gerarResponseCsv(
-                null,
-                null,
-                CategoriaReclamacao.SEGURANCA,
-                LocalDateTime.now().minusDays(1),
-                LocalDateTime.now().plusDays(1)
-        );
-
-        try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(response.getBody().getInputStream(), StandardCharsets.UTF_8))) {
-
-            reader.readLine(); // cabeçalho
-            String registro = lerRegistroCsv(reader);
-            assertNotNull(registro);
-            assertTrue(registro.contains("LIXO"));
-            assertFalse(registro.contains("SANEAMENTO"));
+        Reclamacao build() {
+            return criarReclamacao(usuario, titulo, descricao, categoria, status, dataCriacao);
         }
     }
 
     // ================== HELPERS ==================
-
-    private void validarCsvComUmaLinha(ResponseEntity<Resource> response, Reclamacao reclamacao) throws Exception {
+    private BufferedReader gerarCsv(StatusReclamacao status, Long usuarioId, CategoriaReclamacao categoria,
+                                    LocalDateTime dataInicio, LocalDateTime dataFim) throws Exception {
+        ResponseEntity<Resource> response = csvService.gerarResponseCsv(status, usuarioId, categoria, dataInicio, dataFim);
         assertEquals(MediaType.parseMediaType("text/csv; charset=UTF-8"), response.getHeaders().getContentType());
+        return new BufferedReader(new InputStreamReader(response.getBody().getInputStream(), StandardCharsets.UTF_8));
+    }
 
-        try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(response.getBody().getInputStream(), StandardCharsets.UTF_8))) {
+    private void validarHeaderCsv(BufferedReader reader) throws Exception {
+        String header = removerBom(reader.readLine());
+        assertEquals("id;titulo;descricao;categoria;status;latitude;longitude;dataCriacao;usuario", header);
+    }
 
-            String header = removerBom(reader.readLine());
-            assertEquals("id;titulo;descricao;categoria;status;latitude;longitude;dataCriacao;usuario", header);
-
-            String registro = lerRegistroCsv(reader);
-            assertNotNull(registro);
-
-            String[] colunas = parseCsvSemicolonLine(registro);
-            assertEquals(9, colunas.length);
-
-            assertAll("validação colunas",
-                    () -> assertEquals(String.valueOf(reclamacao.getId()), colunas[0]),
-                    () -> assertEquals(normalizar(reclamacao.getTitulo()), normalizar(colunas[1])),
-                    () -> assertEquals(normalizar(reclamacao.getDescricao()), normalizar(colunas[2])),
-                    () -> assertEquals(reclamacao.getCategoriaReclamacao().name(), colunas[3]),
-                    () -> assertEquals(reclamacao.getStatus().name(), colunas[4]),
-                    () -> assertEquals(String.valueOf(reclamacao.getLocalizacao().getLatitude()), colunas[5]),
-                    () -> assertEquals(String.valueOf(reclamacao.getLocalizacao().getLongitude()), colunas[6]),
-                    () -> assertEquals(reclamacao.getDataCriacao().toLocalDate().toString(), colunas[7]),
-                    () -> assertEquals(normalizar(reclamacao.getUsuario().getNome()), normalizar(colunas[8]))
-            );
+    private List<String> lerRegistrosCsv(BufferedReader reader) throws Exception {
+        List<String> registros = new ArrayList<>();
+        String linha;
+        while ((linha = lerRegistroCsv(reader)) != null) {
+            registros.add(linha);
         }
+        return registros;
     }
 
     private String removerBom(String linha) {
@@ -390,5 +184,147 @@ public class CsvIntegrationTest {
     private String normalizar(String v) {
         if (v == null) return null;
         return v.replace("\r\n", " ").replace("\n", " ").replace("\r", " ").trim();
+    }
+
+    private void validarCsvComUmaLinha(BufferedReader reader, Reclamacao reclamacao) throws Exception {
+        validarHeaderCsv(reader);
+
+        String registro = lerRegistroCsv(reader);
+        assertNotNull(registro);
+
+        String[] colunas = parseCsvSemicolonLine(registro);
+        assertEquals(9, colunas.length);
+
+        // Ajuste aqui: permite tanto data completa quanto apenas LocalDate
+        String esperadoData = reclamacao.getDataCriacao().toLocalDate().toString();
+        String atualData = colunas[7];
+        boolean dataOk = atualData.equals(esperadoData) || atualData.startsWith(esperadoData);
+
+        assertAll("validação colunas",
+                () -> assertEquals(String.valueOf(reclamacao.getId()), colunas[0]),
+                () -> assertEquals(normalizar(reclamacao.getTitulo()), normalizar(colunas[1])),
+                () -> assertEquals(normalizar(reclamacao.getDescricao()), normalizar(colunas[2])),
+                () -> assertEquals(reclamacao.getCategoriaReclamacao().name(), colunas[3]),
+                () -> assertEquals(reclamacao.getStatus().name(), colunas[4]),
+                () -> assertEquals(String.valueOf(reclamacao.getLocalizacao().getLatitude()), colunas[5]),
+                () -> assertEquals(String.valueOf(reclamacao.getLocalizacao().getLongitude()), colunas[6]),
+                () -> assertTrue(dataOk,
+                        () -> "Data esperada: " + esperadoData + " ou começando com ela, mas veio: " + atualData),
+                () -> assertEquals(normalizar(reclamacao.getUsuario().getNome()), normalizar(colunas[8]))
+        );
+    }
+
+    // ================== TESTES ==================
+
+    @Test
+    void deveGerarCsvComUmaReclamacao() throws Exception {
+        Reclamacao reclamacao = reclamacaoBuilder()
+                .titulo("Título válido para teste CSV")
+                .descricao("Descrição válida para teste CSV com mais de 20 caracteres")
+                .categoria(CategoriaReclamacao.SANEAMENTO)
+                .status(StatusReclamacao.ABERTA)
+                .build();
+
+        try (BufferedReader reader = gerarCsv(StatusReclamacao.ABERTA, reclamacao.getUsuario().getId(),
+                CategoriaReclamacao.SANEAMENTO, LocalDateTime.now().minusDays(1), LocalDateTime.now().plusDays(1))) {
+            validarCsvComUmaLinha(reader, reclamacao);
+        }
+    }
+
+    @Test
+    void deveRetornarVazioSeDataForaDoIntervalo() throws Exception {
+        reclamacaoBuilder()
+                .titulo("Título válido teste vazio")
+                .descricao("Descrição válida teste vazio com mais de 20 caracteres")
+                .build();
+
+        try (BufferedReader reader = gerarCsv(null, null, null,
+                LocalDateTime.now().plusDays(1), LocalDateTime.now().plusDays(2))) {
+
+            validarHeaderCsv(reader);
+            List<String> registros = lerRegistrosCsv(reader);
+            assertTrue(registros.isEmpty(), "Não deve haver registros no CSV");
+        }
+    }
+
+    @Test
+    void deveGerarCsvComDatasComoLocalDateConvertidasParaLocalDateTime() throws Exception {
+        Reclamacao reclamacao = reclamacaoBuilder()
+                .titulo("Título datas válido")
+                .descricao("Descrição datas válida com mais de 20 caracteres")
+                .categoria(CategoriaReclamacao.SANEAMENTO)
+                .status(StatusReclamacao.ABERTA)
+                .build();
+
+        LocalDate dataInicio = LocalDate.now().minusDays(1);
+        LocalDate dataFim = LocalDate.now().plusDays(1);
+
+        try (BufferedReader reader = gerarCsv(StatusReclamacao.ABERTA, reclamacao.getUsuario().getId(),
+                CategoriaReclamacao.SANEAMENTO, dataInicio.atStartOfDay(), dataFim.atTime(23, 59, 59))) {
+
+            validarCsvComUmaLinha(reader, reclamacao);
+        }
+    }
+
+    @Test
+    void deveGerarCsvComMultiplasReclamacoes() throws Exception {
+        reclamacaoBuilder().titulo("Título 1 válido").categoria(CategoriaReclamacao.SANEAMENTO).build();
+        reclamacaoBuilder().titulo("Título 2 válido").categoria(CategoriaReclamacao.ILUMINACAO)
+                .status(StatusReclamacao.RESOLVIDA).build();
+
+        try (BufferedReader reader = gerarCsv(null, usuario1.getId(), null,
+                LocalDateTime.now().minusDays(1), LocalDateTime.now().plusDays(1))) {
+
+            validarHeaderCsv(reader);
+            List<String> registros = lerRegistrosCsv(reader);
+            assertEquals(2, registros.size());
+        }
+    }
+
+    @Test
+    void deveFiltrarPorStatus() throws Exception {
+        reclamacaoBuilder().titulo("Título ABERTA válido").status(StatusReclamacao.ABERTA).build();
+        reclamacaoBuilder().titulo("Título RESOLVIDA válido").status(StatusReclamacao.RESOLVIDA).build();
+
+        try (BufferedReader reader = gerarCsv(StatusReclamacao.ABERTA, null, null,
+                LocalDateTime.now().minusDays(1), LocalDateTime.now().plusDays(1))) {
+
+            validarHeaderCsv(reader);
+            List<String> registros = lerRegistrosCsv(reader);
+            assertEquals(1, registros.size());
+            assertTrue(registros.get(0).contains("ABERTA"));
+        }
+    }
+
+    @Test
+    void deveFiltrarPorUsuario() throws Exception {
+        reclamacaoBuilder().titulo("Título João válido").usuario(usuario1).build();
+        reclamacaoBuilder().titulo("Título Maria válido").usuario(usuario2).build();
+
+        try (BufferedReader reader = gerarCsv(null, usuario1.getId(), null,
+                LocalDateTime.now().minusDays(1), LocalDateTime.now().plusDays(1))) {
+
+            validarHeaderCsv(reader);
+            List<String> registros = lerRegistrosCsv(reader);
+            assertEquals(1, registros.size());
+            assertTrue(registros.get(0).contains("João"));
+            assertFalse(registros.get(0).contains("Maria"));
+        }
+    }
+
+    @Test
+    void deveFiltrarPorCategoria() throws Exception {
+        reclamacaoBuilder().titulo("Título SANEAMENTO válido").categoria(CategoriaReclamacao.SANEAMENTO).build();
+        reclamacaoBuilder().titulo("Título SEGURANCA válido").categoria(CategoriaReclamacao.SEGURANCA).build();
+
+        try (BufferedReader reader = gerarCsv(null, null, CategoriaReclamacao.SEGURANCA,
+                LocalDateTime.now().minusDays(1), LocalDateTime.now().plusDays(1))) {
+
+            validarHeaderCsv(reader);
+            List<String> registros = lerRegistrosCsv(reader);
+            assertEquals(1, registros.size());
+            assertTrue(registros.get(0).contains("SEGURANCA"));
+            assertFalse(registros.get(0).contains("SANEAMENTO"));
+        }
     }
 }
