@@ -1,10 +1,12 @@
 package com.artheus.cidadaoalerta.controller;
 
+import com.artheus.cidadaoalerta.dto.RespostaEmail;
 import com.artheus.cidadaoalerta.model.Usuario;
 import com.artheus.cidadaoalerta.dto.AtualizacaoUsuario;
 import com.artheus.cidadaoalerta.dto.CadastroUsuario;
 import com.artheus.cidadaoalerta.dto.DetalhamentoUsuario;
 import com.artheus.cidadaoalerta.mapper.UsuarioMapper;
+import com.artheus.cidadaoalerta.service.EmailService;
 import com.artheus.cidadaoalerta.service.UsuarioService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -16,6 +18,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -24,6 +27,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import java.net.URI;
 import java.util.List;
 
+@Slf4j
 @RestController
 @RequestMapping("/usuarios")
 @RequiredArgsConstructor
@@ -33,6 +37,7 @@ public class UsuarioController {
 
     private final UsuarioService usuarioService;
     private final UsuarioMapper usuarioMapper;
+    private final EmailService emailService;
 
     @PostMapping
     @Operation(summary = "Cadastrar um novo usuário",
@@ -60,9 +65,11 @@ public class UsuarioController {
     })
     public ResponseEntity<DetalhamentoUsuario> cadastrarUsuario(
             @RequestBody @Valid CadastroUsuario dados) {
+        log.info("Recebida requisição para criar usuário: {}", dados.email());
         DetalhamentoUsuario usuario = usuarioService.cadastrarUsuario(dados);
         URI uri = ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}")
                 .buildAndExpand(usuario.id()).toUri();
+        log.info("Usuário criado com sucesso: id={}", usuario.id());
         return ResponseEntity.created(uri).body(usuario);
     }
 
@@ -101,22 +108,13 @@ public class UsuarioController {
                     content = @Content(mediaType = "application/json"))
     })
     public ResponseEntity<Void> inativarUsuario(@PathVariable Long id) {
-        usuarioService.desativarUsuario(id);
+        usuarioService.inativarUsuario(id);
         return ResponseEntity.noContent().build();
     }
 
     @PatchMapping("/{id}")
     @Operation(summary = "Atualizar dados de um usuário",
             description = "Atualiza informações de um usuário existente. Requer autenticação")
-    @io.swagger.v3.oas.annotations.parameters.RequestBody(
-            description = "Campos que podem ser atualizados no usuário",
-            required = true,
-            content = @Content(
-                    mediaType = "application/json",
-                    schema = @Schema(implementation = AtualizacaoUsuario.class),
-                    examples = @ExampleObject(value = "{ \"nome\": \"João Atualizado\", \"senha\": \"novaSenha123\" }")
-            )
-    )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Usuário atualizado com sucesso",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = DetalhamentoUsuario.class))),
@@ -126,7 +124,10 @@ public class UsuarioController {
     public ResponseEntity<DetalhamentoUsuario> atualizarUsuario(
             @PathVariable Long id,
             @RequestBody @Valid AtualizacaoUsuario dto) {
-        return ResponseEntity.ok(usuarioService.atualizarUsuario(id, dto));
+        log.info("Recebida requisição para atualizar usuário: id={}", id);
+        DetalhamentoUsuario usuarioAtualizado = usuarioService.atualizarUsuario(id, dto);
+        log.info("Usuário atualizado com sucesso: id={}", id);
+        return ResponseEntity.ok(usuarioAtualizado);
     }
 
     @GetMapping("/me")

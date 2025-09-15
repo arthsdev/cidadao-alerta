@@ -20,3 +20,4 @@ public class AtualizacaoReclamacao {
 
         private Localizacao localizacao;
 }
+

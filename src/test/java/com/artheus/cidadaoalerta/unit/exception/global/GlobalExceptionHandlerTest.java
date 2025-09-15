@@ -1,163 +1,141 @@
 package com.artheus.cidadaoalerta.unit.exception.global;
 
 import com.artheus.cidadaoalerta.exception.csv.CsvGenerationException;
+import com.artheus.cidadaoalerta.exception.email.EmailSendException;
+import com.artheus.cidadaoalerta.exception.global.GlobalExceptionHandler;
+import com.artheus.cidadaoalerta.exception.model.ApiError;
 import com.artheus.cidadaoalerta.exception.reclamacao.*;
 import com.artheus.cidadaoalerta.exception.usuario.*;
-import com.artheus.cidadaoalerta.exception.global.GlobalExceptionHandler;
+import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authorization.AuthorizationDeniedException;
 
-import java.util.Map;
-
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 class GlobalExceptionHandlerTest {
 
     private GlobalExceptionHandler handler;
+    private HttpServletRequest request;
 
     @BeforeEach
-    void setUp() {
+    void setup() {
         handler = new GlobalExceptionHandler();
-    }
-
-    // ================= CSV =================
-    @Test
-    void deveLancarCsvGenerationException() {
-        CsvGenerationException ex = new CsvGenerationException("Erro ao gerar CSV");
-        ResponseEntity<Map<String, Object>> response = handler.handleCsvGenerationException(ex);
-
-        Map<String, Object> body = response.getBody();
-        assertNotNull(body);
-        assertEquals("Erro ao gerar CSV", body.get("error"));
-        assertEquals("Erro ao gerar CSV", body.get("message"));
-        assertEquals(500, body.get("status"));
-    }
-
-    // ================= RECLAMACAO =================
-    @Test
-    void deveLancarReclamacaoNaoEncontradaException() {
-        ReclamacaoNaoEncontradaException ex = new ReclamacaoNaoEncontradaException("Reclamação não encontrada");
-        ResponseEntity<Map<String, Object>> response = handler.handleReclamacaoNaoEncontrada(ex);
-
-        Map<String, Object> body = response.getBody();
-        assertNotNull(body);
-        assertEquals("Reclamação não encontrada", body.get("error"));
-        assertEquals("Reclamação não encontrada", body.get("message"));
-        assertEquals(404, body.get("status"));
+        request = mock(HttpServletRequest.class);
+        when(request.getRequestURI()).thenReturn("/teste");
     }
 
     @Test
-    void deveLancarReclamacaoDesativadaException() {
-        ReclamacaoDesativadaException ex = new ReclamacaoDesativadaException("Reclamação desativada");
-        ResponseEntity<Map<String, Object>> response = handler.handleReclamacaoDesativada(ex);
+    void testHandleCsvGenerationException() {
+        CsvGenerationException ex = new CsvGenerationException("Erro CSV");
+        ResponseEntity<ApiError> response = handler.handleCsvGenerationException(ex, request);
 
-        Map<String, Object> body = response.getBody();
-        assertNotNull(body);
-        assertEquals("Reclamação desativada", body.get("error"));
-        assertEquals("Reclamação desativada", body.get("message"));
-        assertEquals(400, body.get("status"));
+        assertNotNull(response.getBody());
+        assertEquals(500, response.getBody().getStatus());
+        assertTrue(response.getBody().getDetail().contains("Erro CSV"));
     }
 
     @Test
-    void deveLancarReclamacaoDuplicadaException() {
-        ReclamacaoDuplicadaException ex = new ReclamacaoDuplicadaException("Rua XYZ suja", 123L);
-        ResponseEntity<Map<String, Object>> response = handler.handleReclamacaoDuplicada(ex);
+    void testHandleReclamacaoNaoEncontrada() {
+        ReclamacaoNaoEncontradaException ex = new ReclamacaoNaoEncontradaException("Não encontrado");
+        ResponseEntity<ApiError> response = handler.handleReclamacaoNaoEncontrada(ex, request);
 
-        Map<String, Object> body = response.getBody();
-        assertNotNull(body);
-        assertEquals("Reclamação duplicada", body.get("error"));
-        assertEquals("Já existe uma reclamação ativa com o título 'Rua XYZ suja' para o usuário ID 123", body.get("message"));
-        assertEquals(409, body.get("status"));
+        assertNotNull(response.getBody());
+        assertEquals(404, response.getBody().getStatus());
     }
 
     @Test
-    void deveLancarReclamacaoAtualizacaoInvalidaException() {
-        ReclamacaoAtualizacaoInvalidaException ex = new ReclamacaoAtualizacaoInvalidaException("Atualização inválida");
-        ResponseEntity<Map<String, Object>> response = handler.handleAtualizacaoInvalida(ex);
+    void testHandleReclamacaoDesativada() {
+        ReclamacaoDesativadaException ex = new ReclamacaoDesativadaException("Desativada");
+        ResponseEntity<ApiError> response = handler.handleReclamacaoDesativada(ex, request);
 
-        Map<String, Object> body = response.getBody();
-        assertNotNull(body);
-        assertEquals("Atualização de reclamação inválida", body.get("error"));
-        assertEquals("Atualização inválida", body.get("message"));
-        assertEquals(400, body.get("status"));
-    }
-
-    // ================= USUARIO =================
-    @Test
-    void deveLancarUsuarioNaoAutenticadoException() {
-        UsuarioNaoAutenticadoException ex = new UsuarioNaoAutenticadoException("Usuário não autenticado");
-        ResponseEntity<Map<String, Object>> response = handler.handleUsuarioNaoAutenticado(ex);
-
-        Map<String, Object> body = response.getBody();
-        assertNotNull(body);
-        assertEquals("Usuário não autenticado", body.get("error"));
-        assertEquals("Usuário não autenticado", body.get("message"));
-        assertEquals(401, body.get("status"));
+        assertNotNull(response.getBody());
+        assertEquals(400, response.getBody().getStatus());
     }
 
     @Test
-    void deveLancarUsuarioSemPermissaoException() {
-        UsuarioSemPermissaoException ex = new UsuarioSemPermissaoException("Usuário sem permissão");
-        ResponseEntity<Map<String, Object>> response = handler.handleUsuarioSemPermissao(ex);
+    void testHandleReclamacaoDuplicada() {
+        ReclamacaoDuplicadaException ex = new ReclamacaoDuplicadaException();
+        ResponseEntity<ApiError> response = handler.handleReclamacaoDuplicada(ex, request);
 
-        Map<String, Object> body = response.getBody();
-        assertNotNull(body);
-        assertEquals("Usuário sem permissão", body.get("error"));
-        assertEquals("Usuário sem permissão", body.get("message"));
-        assertEquals(403, body.get("status"));
+        assertNotNull(response.getBody());
+        assertEquals(409, response.getBody().getStatus());
     }
 
     @Test
-    void deveLancarUsuarioNaoEncontradoException() {
-        UsuarioNaoEncontradoException ex = new UsuarioNaoEncontradoException("teste@teste.com");
-        ResponseEntity<Map<String, Object>> response = handler.handleUsuarioNaoEncontrado(ex);
+    void testHandleAtualizacaoInvalida() {
+        ReclamacaoAtualizacaoInvalidaException ex = new ReclamacaoAtualizacaoInvalidaException("Inválida");
+        ResponseEntity<ApiError> response = handler.handleAtualizacaoInvalida(ex, request);
 
-        Map<String, Object> body = response.getBody();
-        assertNotNull(body);
-        assertEquals("Usuário não encontrado", body.get("error"));
-        assertEquals("Usuário não encontrado com email: teste@teste.com", body.get("message"));
-        assertEquals(404, body.get("status"));
-    }
-
-    // ================= SPRING SECURITY =================
-    @Test
-    void deveTratarAccessDeniedException() {
-        AccessDeniedException ex = new AccessDeniedException("Acesso negado");
-        ResponseEntity<Map<String, Object>> response = handler.handleAccessDenied(ex);
-
-        Map<String, Object> body = response.getBody();
-        assertNotNull(body);
-        assertEquals("Acesso negado", body.get("error"));
-        assertEquals("Access Denied", body.get("message"));
-        assertEquals(403, body.get("status"));
+        assertNotNull(response.getBody());
+        assertEquals(400, response.getBody().getStatus());
     }
 
     @Test
-    void deveTratarAuthorizationDeniedException() {
-        AuthorizationDeniedException ex = new AuthorizationDeniedException("Acesso negado");
-        ResponseEntity<Map<String, Object>> response = handler.handleAccessDenied(ex);
+    void testHandleUsuarioNaoAutenticado() {
+        UsuarioNaoAutenticadoException ex = new UsuarioNaoAutenticadoException("Não autenticado");
+        ResponseEntity<ApiError> response = handler.handleUsuarioNaoAutenticado(ex, request);
 
-        Map<String, Object> body = response.getBody();
-        assertNotNull(body);
-        assertEquals("Acesso negado", body.get("error"));
-        assertEquals("Access Denied", body.get("message"));
-        assertEquals(403, body.get("status"));
+        assertNotNull(response.getBody());
+        assertEquals(401, response.getBody().getStatus());
     }
 
-
-    // ================= GENÉRICO =================
     @Test
-    void deveLancarExceptionGenerica() {
-        Exception ex = new Exception("Erro interno");
-        ResponseEntity<Map<String, Object>> response = handler.handleGenericException(ex);
+    void testHandleUsuarioSemPermissao() {
+        UsuarioSemPermissaoException ex = new UsuarioSemPermissaoException("Sem permissão");
+        ResponseEntity<ApiError> response = handler.handleUsuarioSemPermissao(ex, request);
 
-        Map<String, Object> body = response.getBody();
-        assertNotNull(body);
-        assertEquals("Erro interno", body.get("error"));
-        assertEquals("Erro interno", body.get("message"));
-        assertEquals(500, body.get("status"));
+        assertNotNull(response.getBody());
+        assertEquals(403, response.getBody().getStatus());
+    }
+
+    @Test
+    void testHandleUsuarioNaoEncontrado() {
+        UsuarioNaoEncontradoException ex = new UsuarioNaoEncontradoException("Não encontrado");
+        ResponseEntity<ApiError> response = handler.handleUsuarioNaoEncontrado(ex, request);
+
+        assertNotNull(response.getBody());
+        assertEquals(404, response.getBody().getStatus());
+    }
+
+    @Test
+    void testHandleEmailSendException() {
+        EmailSendException ex = new EmailSendException("Erro e-mail");
+        ResponseEntity<ApiError> response = handler.handleEmailSendException(ex, request);
+
+        assertNotNull(response.getBody());
+        assertEquals(500, response.getBody().getStatus());
+    }
+
+    @Test
+    void testHandleAccessDeniedWithAccessDeniedException() {
+        AccessDeniedException ex = new AccessDeniedException("Negado");
+        ResponseEntity<ApiError> response = handler.handleAccessDenied(ex, request);
+
+        assertNotNull(response.getBody());
+        assertEquals(403, response.getBody().getStatus());
+    }
+
+    @Test
+    void testHandleAccessDeniedWithAuthorizationDeniedException() {
+        AuthorizationDeniedException ex = new AuthorizationDeniedException("Negado");
+        ResponseEntity<ApiError> response = handler.handleAccessDenied(ex, request);
+
+        assertNotNull(response.getBody());
+        assertEquals(403, response.getBody().getStatus());
+    }
+
+    @Test
+    void testHandleGenericException() {
+        Exception ex = new Exception("Erro genérico");
+        ResponseEntity<ApiError> response = handler.handleGenericException(ex, request);
+
+        assertNotNull(response.getBody());
+        assertEquals(500, response.getBody().getStatus());
+        assertTrue(response.getBody().getDetail().contains("Erro genérico"));
     }
 }

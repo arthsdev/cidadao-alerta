@@ -112,7 +112,7 @@ class UsuarioControllerTest {
         ResponseEntity<Void> resultado = usuarioController.inativarUsuario(1L);
 
         assertEquals(HttpStatus.NO_CONTENT, resultado.getStatusCode());
-        verify(usuarioService).desativarUsuario(1L);
+        verify(usuarioService).inativarUsuario(1L);
     }
 
     @Test

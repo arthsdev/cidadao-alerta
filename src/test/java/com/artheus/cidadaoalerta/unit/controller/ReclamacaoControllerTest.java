@@ -163,6 +163,43 @@ class ReclamacaoControllerTest {
         verify(reclamacaoService).inativarReclamacao(1L);
     }
 
+    @Test
+    void deveCobrirTodosCaminhosDeDataInicioEDataFim() throws Exception {
+        // Cenários de teste:
+        // 1. Ambos null
+        mockMvc.perform(get("/reclamacoes")
+                        .param("dataInicio", "")
+                        .param("dataFim", "")
+                        .param("page", "0")
+                        .param("size", "10"))
+                .andExpect(status().isOk());
+
+        // 2. dataInicio preenchida, dataFim null
+        mockMvc.perform(get("/reclamacoes")
+                        .param("dataInicio", "2025-01-01")
+                        .param("dataFim", "")
+                        .param("page", "0")
+                        .param("size", "10"))
+                .andExpect(status().isOk());
+
+        // 3. dataInicio null, dataFim preenchida
+        mockMvc.perform(get("/reclamacoes")
+                        .param("dataInicio", "")
+                        .param("dataFim", "2025-01-31")
+                        .param("page", "0")
+                        .param("size", "10"))
+                .andExpect(status().isOk());
+
+        // 4. Ambos preenchidos
+        mockMvc.perform(get("/reclamacoes")
+                        .param("dataInicio", "2025-01-01")
+                        .param("dataFim", "2025-01-31")
+                        .param("page", "0")
+                        .param("size", "10"))
+                .andExpect(status().isOk());
+    }
+
+
     // ===================== TESTES DE ERRO =====================
 
     @Test

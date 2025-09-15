@@ -1,9 +1,8 @@
 package com.artheus.cidadaoalerta.service;
 
+import com.artheus.cidadaoalerta.dto.FiltroReclamacaoDTO;
 import com.artheus.cidadaoalerta.exception.csv.CsvGenerationException;
 import com.artheus.cidadaoalerta.model.Reclamacao;
-import com.artheus.cidadaoalerta.model.enums.CategoriaReclamacao;
-import com.artheus.cidadaoalerta.model.enums.StatusReclamacao;
 import com.artheus.cidadaoalerta.repository.ReclamacaoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.InputStreamResource;
@@ -18,7 +17,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
-import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
@@ -39,27 +37,22 @@ public class CsvService {
     // ===================== API PÚBLICA =====================
 
     /**
-     * Gera um ResponseEntity contendo o arquivo CSV das reclamações filtradas.
+     * Gera um arquivo CSV contendo as reclamações filtradas, retornando um ResponseEntity pronto para download.
      *
-     * @param status    Filtro opcional pelo status da reclamação
-     * @param usuarioId Filtro opcional pelo ID do usuário
-     * @param categoria Filtro opcional pela categoria da reclamação
-     * @param dataInicio Filtro opcional para data de criação mínima
-     * @param dataFim   Filtro opcional para data de criação máxima
-     * @return ResponseEntity com o CSV pronto para download
+     * @param filtro DTO contendo os filtros opcionais: status, usuário, categoria e intervalo de datas
+     * @return ResponseEntity com o arquivo CSV gerado
      */
-    public ResponseEntity<Resource> gerarResponseCsv(
-            StatusReclamacao status,
-            Long usuarioId,
-            CategoriaReclamacao categoria,
-            LocalDateTime dataInicio,
-            LocalDateTime dataFim
-    ) {
-        // Busca as reclamações aplicando todos os filtros
+
+
+    public ResponseEntity<Resource> gerarResponseCsv(FiltroReclamacaoDTO filtro) {
         List<Reclamacao> reclamacoes = repository.buscarReclamacoesPorFiltrosCompletos(
-                status, usuarioId, categoria, dataInicio, dataFim
+                filtro.status(),
+                filtro.usuarioId(),
+                filtro.categoria(),
+                filtro.getDataInicioLdt().orElse(null), // passa null se não houver data
+                filtro.getDataFimLdt().orElse(null)
         );
-        // Monta a resposta HTTP com o CSV
+
         return montarResponseCsv(reclamacoes);
     }
 

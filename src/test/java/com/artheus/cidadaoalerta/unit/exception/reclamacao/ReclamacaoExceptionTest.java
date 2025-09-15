@@ -35,7 +35,7 @@ class ReclamacaoExceptionTest {
         void deveLancarComMensagemGenerica() {
             ReclamacaoDuplicadaException exception = assertThrows(
                     ReclamacaoDuplicadaException.class,
-                    () -> { throw new ReclamacaoDuplicadaException(); } // <<== lança aqui
+                    () -> { throw new ReclamacaoDuplicadaException(); }
             );
 
             assertEquals(
@@ -43,69 +43,91 @@ class ReclamacaoExceptionTest {
                     exception.getMessage()
             );
         }
-
-
     }
 
     // ====================== RECLAMAÇÃO NÃO ENCONTRADA ======================
     @Test
-    void deveLancarReclamacaoNaoEncontrada() {
-        ReclamacaoNaoEncontradaException exception = assertThrows(
+    void deveLancarReclamacaoNaoEncontradaConstrutores() {
+        // Long
+        ReclamacaoNaoEncontradaException exId = assertThrows(
                 ReclamacaoNaoEncontradaException.class,
                 () -> { throw new ReclamacaoNaoEncontradaException(10L); }
         );
+        assertEquals("Reclamação não encontrada com ID: 10", exId.getMessage());
 
-        assertEquals(
-                "Reclamação não encontrada com ID: 10",
-                exception.getMessage()
+        // String
+        ReclamacaoNaoEncontradaException exMsg = assertThrows(
+                ReclamacaoNaoEncontradaException.class,
+                () -> { throw new ReclamacaoNaoEncontradaException("Custom not found"); }
         );
+        assertEquals("Custom not found", exMsg.getMessage());
+
+        // Sem args
+        ReclamacaoNaoEncontradaException exPadrao = assertThrows(
+                ReclamacaoNaoEncontradaException.class,
+                () -> { throw new ReclamacaoNaoEncontradaException(); }
+        );
+        assertEquals("Reclamação não encontrada", exPadrao.getMessage());
     }
 
     // ====================== RECLAMAÇÃO DESATIVADA ======================
     @Test
-    void deveLancarReclamacaoDesativada() {
-        ReclamacaoDesativadaException exception = assertThrows(
+    void deveLancarReclamacaoDesativadaConstrutores() {
+        // Long
+        ReclamacaoDesativadaException exId = assertThrows(
                 ReclamacaoDesativadaException.class,
                 () -> { throw new ReclamacaoDesativadaException(5L); }
         );
+        assertEquals("Reclamação com ID 5 está desativada", exId.getMessage());
 
-        assertEquals(
-                "Reclamação com ID 5 está desativada",
-                exception.getMessage()
+        // String
+        ReclamacaoDesativadaException exMsg = assertThrows(
+                ReclamacaoDesativadaException.class,
+                () -> { throw new ReclamacaoDesativadaException("Custom"); }
         );
+        assertEquals("Custom", exMsg.getMessage());
+
+        // Sem args
+        ReclamacaoDesativadaException exVazia = assertThrows(
+                ReclamacaoDesativadaException.class,
+                () -> { throw new ReclamacaoDesativadaException(); }
+        );
+        assertEquals("Reclamação está desativada", exVazia.getMessage());
     }
 
     // ====================== RECLAMAÇÃO ATUALIZAÇÃO INVÁLIDA ======================
     @Test
-    void deveLancarReclamacaoAtualizacaoInvalida() {
-        ReclamacaoAtualizacaoInvalidaException exception = assertThrows(
+    void deveLancarReclamacaoAtualizacaoInvalidaConstrutores() {
+        // Long
+        ReclamacaoAtualizacaoInvalidaException exId = assertThrows(
                 ReclamacaoAtualizacaoInvalidaException.class,
                 () -> { throw new ReclamacaoAtualizacaoInvalidaException(7L); }
         );
+        assertEquals("Atualização da reclamação com ID 7 é inválida", exId.getMessage());
 
-        assertEquals(
-                "Atualização da reclamação com ID 7 é inválida",
-                exception.getMessage()
+        // String
+        ReclamacaoAtualizacaoInvalidaException exMsg = assertThrows(
+                ReclamacaoAtualizacaoInvalidaException.class,
+                () -> { throw new ReclamacaoAtualizacaoInvalidaException("Custom invalid update"); }
         );
+        assertEquals("Custom invalid update", exMsg.getMessage());
     }
 
     // ====================== RECLAMAÇÃO SEM PERMISSÃO ======================
     @Test
-    void deveLancarReclamacaoSemPermissao() {
-        // construtor vazio
-        ReclamacaoSemPermissaoException exceptionVazia = assertThrows(
+    void deveLancarReclamacaoSemPermissaoConstrutores() {
+        // Construtor vazio
+        ReclamacaoSemPermissaoException exVazia = assertThrows(
                 ReclamacaoSemPermissaoException.class,
                 () -> { throw new ReclamacaoSemPermissaoException(); }
         );
-        assertEquals("Usuário não tem permissão para inativar esta reclamação", exceptionVazia.getMessage());
+        assertEquals("Usuário não tem permissão para inativar esta reclamação", exVazia.getMessage());
 
-        // construtor com mensagem customizada
-        ReclamacaoSemPermissaoException exceptionComMensagem = assertThrows(
+        // Construtor com mensagem customizada
+        ReclamacaoSemPermissaoException exMsg = assertThrows(
                 ReclamacaoSemPermissaoException.class,
                 () -> { throw new ReclamacaoSemPermissaoException("Mensagem customizada"); }
         );
-        assertEquals("Mensagem customizada", exceptionComMensagem.getMessage());
+        assertEquals("Mensagem customizada", exMsg.getMessage());
     }
-
-
 }

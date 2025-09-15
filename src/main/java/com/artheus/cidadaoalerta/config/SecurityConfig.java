@@ -8,7 +8,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -29,52 +28,36 @@ public class SecurityConfig {
                 // desabilita CSRF (API REST)
                 .csrf(csrf -> csrf.disable())
 
-                // configura autorização das rotas
+                // configuração de autorização
                 .authorizeHttpRequests(auth -> auth
-                        // rotas públicas (Swagger e autenticação)
                         .requestMatchers(
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
                                 "/v3/api-docs/**",
                                 "/auth/**"
                         ).permitAll()
-
-                        // cadastro de usuário é público
                         .requestMatchers(HttpMethod.POST, "/usuarios/**").permitAll()
-
-                        // somente ADMIN pode exportar CSV
                         .requestMatchers(HttpMethod.GET, "/reclamacoes/export").hasRole("ADMIN")
-
-                        // qualquer outra rota exige autenticação
                         .anyRequest().authenticated()
                 )
 
-                // tratamento centralizado para erros de autenticação/autorização
+                // tratamento de erros de autenticação/autorização
                 .exceptionHandling(ex -> ex
-                        // 401 → não autenticado
                         .authenticationEntryPoint((req, res, e) ->
                                 res.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized"))
-                        // 403 → autenticado, mas sem permissão
                         .accessDeniedHandler((req, res, e) ->
                                 res.sendError(HttpServletResponse.SC_FORBIDDEN, "Forbidden"))
                 )
 
-                // aplica o filtro JWT antes do filtro padrão do Spring
+                // filtro JWT antes do filtro padrão do Spring
                 .addFilterBefore(filtroJwt, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
     @Bean
-    public DaoAuthenticationProvider authenticationProvider() {
-        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
-        authProvider.setUserDetailsService(usuarioDetailsService);
-        authProvider.setPasswordEncoder(passwordEncoder());
-        return authProvider;
-    }
-
-    @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+    public AuthenticationManager authenticationManager(
+            AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
     }
 
