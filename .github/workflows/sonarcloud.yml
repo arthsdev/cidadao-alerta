@@ -18,7 +18,7 @@ jobs:
         with:
           fetch-depth: 0  # necessário para histórico SCM completo e cobertura de PRs
 
-      # 2Configura JDK 17
+      # Configura JDK 17
       - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:

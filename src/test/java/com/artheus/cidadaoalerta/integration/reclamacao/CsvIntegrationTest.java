@@ -1,6 +1,7 @@
 package com.artheus.cidadaoalerta.integration.reclamacao;
 
 import com.artheus.cidadaoalerta.CidadaoAlertaApplication;
+import com.artheus.cidadaoalerta.dto.FiltroReclamacaoDTO;
 import com.artheus.cidadaoalerta.model.Localizacao;
 import com.artheus.cidadaoalerta.model.Reclamacao;
 import com.artheus.cidadaoalerta.model.Usuario;
@@ -111,10 +112,15 @@ public class CsvIntegrationTest {
     // ================== HELPERS ==================
     private BufferedReader gerarCsv(StatusReclamacao status, Long usuarioId, CategoriaReclamacao categoria,
                                     LocalDateTime dataInicio, LocalDateTime dataFim) throws Exception {
-        ResponseEntity<Resource> response = csvService.gerarResponseCsv(status, usuarioId, categoria, dataInicio, dataFim);
+        LocalDate inicio = dataInicio != null ? dataInicio.toLocalDate() : null;
+        LocalDate fim = dataFim != null ? dataFim.toLocalDate() : null;
+
+        FiltroReclamacaoDTO filtro = new FiltroReclamacaoDTO(status, usuarioId, categoria, inicio, fim);
+        ResponseEntity<Resource> response = csvService.gerarResponseCsv(filtro);
         assertEquals(MediaType.parseMediaType("text/csv; charset=UTF-8"), response.getHeaders().getContentType());
         return new BufferedReader(new InputStreamReader(response.getBody().getInputStream(), StandardCharsets.UTF_8));
     }
+
 
     private void validarHeaderCsv(BufferedReader reader) throws Exception {
         String header = removerBom(reader.readLine());
@@ -195,7 +201,7 @@ public class CsvIntegrationTest {
         String[] colunas = parseCsvSemicolonLine(registro);
         assertEquals(9, colunas.length);
 
-        // Ajuste aqui: permite tanto data completa quanto apenas LocalDate
+        // Ajuste: permite tanto data completa quanto apenas LocalDate
         String esperadoData = reclamacao.getDataCriacao().toLocalDate().toString();
         String atualData = colunas[7];
         boolean dataOk = atualData.equals(esperadoData) || atualData.startsWith(esperadoData);
@@ -244,25 +250,6 @@ public class CsvIntegrationTest {
             validarHeaderCsv(reader);
             List<String> registros = lerRegistrosCsv(reader);
             assertTrue(registros.isEmpty(), "Não deve haver registros no CSV");
-        }
-    }
-
-    @Test
-    void deveGerarCsvComDatasComoLocalDateConvertidasParaLocalDateTime() throws Exception {
-        Reclamacao reclamacao = reclamacaoBuilder()
-                .titulo("Título datas válido")
-                .descricao("Descrição datas válida com mais de 20 caracteres")
-                .categoria(CategoriaReclamacao.SANEAMENTO)
-                .status(StatusReclamacao.ABERTA)
-                .build();
-
-        LocalDate dataInicio = LocalDate.now().minusDays(1);
-        LocalDate dataFim = LocalDate.now().plusDays(1);
-
-        try (BufferedReader reader = gerarCsv(StatusReclamacao.ABERTA, reclamacao.getUsuario().getId(),
-                CategoriaReclamacao.SANEAMENTO, dataInicio.atStartOfDay(), dataFim.atTime(23, 59, 59))) {
-
-            validarCsvComUmaLinha(reader, reclamacao);
         }
     }
 

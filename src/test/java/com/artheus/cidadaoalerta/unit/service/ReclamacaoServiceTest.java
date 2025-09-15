@@ -15,11 +15,13 @@ import com.artheus.cidadaoalerta.model.enums.Role;
 import com.artheus.cidadaoalerta.model.enums.StatusReclamacao;
 import com.artheus.cidadaoalerta.repository.ReclamacaoRepository;
 import com.artheus.cidadaoalerta.repository.UsuarioRepository;
+import com.artheus.cidadaoalerta.service.EmailService;
 import com.artheus.cidadaoalerta.service.ReclamacaoService;
 import org.junit.jupiter.api.*;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.*;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContext;
@@ -34,6 +36,12 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class ReclamacaoServiceTest {
+
+    @Mock
+    private EmailService emailService;
+
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
     private ReclamacaoService reclamacaoService;
@@ -226,11 +234,23 @@ class ReclamacaoServiceTest {
         dto.setCategoriaReclamacao(CategoriaReclamacao.ILUMINACAO);
         dto.setLocalizacao(localizacao);
 
+        // Mock do findById
         when(reclamacaoRepository.findById(1L)).thenReturn(Optional.of(reclamacao));
+        // Mock do save
+        when(reclamacaoRepository.save(any(Reclamacao.class))).thenReturn(reclamacao);
+        // Mock do mapper
         when(reclamacaoMapper.toDetalhamentoDto(reclamacao)).thenReturn(
-                new DetalhamentoReclamacao(1L, dto.getTitulo(), dto.getDescricao(),
-                        dto.getCategoriaReclamacao(), localizacao, StatusReclamacao.ABERTA,
-                        LocalDateTime.now(), usuario.getId(), usuario.getNome())
+                new DetalhamentoReclamacao(
+                        1L,
+                        dto.getTitulo(),
+                        dto.getDescricao(),
+                        dto.getCategoriaReclamacao(),
+                        localizacao,
+                        StatusReclamacao.ABERTA,
+                        LocalDateTime.now(),
+                        usuario.getId(),
+                        usuario.getNome()
+                )
         );
 
         DetalhamentoReclamacao result = reclamacaoService.atualizarReclamacao(1L, dto);
@@ -238,6 +258,7 @@ class ReclamacaoServiceTest {
         assertEquals("Novo Título", result.titulo());
         assertEquals(localizacao, result.localizacao());
     }
+
 
     @Test
     void deveLancarExceptionSeAtualizacaoInvalida() {

@@ -9,11 +9,15 @@ import com.artheus.cidadaoalerta.model.enums.Role;
 import com.artheus.cidadaoalerta.model.enums.StatusReclamacao;
 import com.artheus.cidadaoalerta.repository.ReclamacaoRepository;
 import com.artheus.cidadaoalerta.repository.UsuarioRepository;
+import com.artheus.cidadaoalerta.service.EmailService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -22,11 +26,19 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest(
-        classes = CidadaoAlertaApplication.class,
+        classes = {CidadaoAlertaApplication.class, ReclamacaoControllerSecurityIntegrationTest.TestConfig.class},
         properties = "spring.config.location=classpath:application-test.properties"
 )
 @AutoConfigureMockMvc
 class ReclamacaoControllerSecurityIntegrationTest {
+
+    @TestConfiguration
+    static class TestConfig {
+        @Bean
+        public EmailService emailService() {
+            return Mockito.mock(EmailService.class);
+        }
+    }
 
     @Autowired
     private MockMvc mockMvc;
@@ -40,6 +52,9 @@ class ReclamacaoControllerSecurityIntegrationTest {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private EmailService emailService; // mock injetado
+
     private Usuario usuarioDono;
     private Usuario usuarioOutro;
     private Reclamacao reclamacao;
@@ -48,6 +63,10 @@ class ReclamacaoControllerSecurityIntegrationTest {
     void setUp() {
         reclamacaoRepository.deleteAll();
         usuarioRepository.deleteAll();
+
+        // Configura comportamento do mock para não enviar e-mail
+        Mockito.doNothing().when(emailService)
+                .enviarEmail(Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
 
         usuarioDono = criarUsuario("Usuario Dono", "usuario@email.com", Role.ROLE_USER);
         usuarioOutro = criarUsuario("Outro Usuario", "outro@email.com", Role.ROLE_USER);

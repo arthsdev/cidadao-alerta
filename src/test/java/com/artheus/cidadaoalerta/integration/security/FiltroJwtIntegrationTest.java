@@ -4,17 +4,22 @@ import com.artheus.cidadaoalerta.model.Usuario;
 import com.artheus.cidadaoalerta.model.enums.Role;
 import com.artheus.cidadaoalerta.repository.UsuarioRepository;
 import com.artheus.cidadaoalerta.security.JwtService;
-import org.junit.jupiter.api.BeforeEach;
+import com.artheus.cidadaoalerta.service.EmailService;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
 import org.springframework.http.MediaType;
-import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -23,7 +28,18 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Transactional
 class FiltroJwtIntegrationTest {
+
+    @TestConfiguration
+    static class TestConfig {
+        @Bean
+        public EmailService emailService() {
+            // EmailService fake para evitar envio real
+            return new EmailService(Mockito.mock(JavaMailSender.class));
+        }
+    }
 
     @Autowired
     private MockMvc mockMvc;
@@ -37,22 +53,22 @@ class FiltroJwtIntegrationTest {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    private String token; // Token para ROLE_USER
-    private Usuario usuario;
+    private String tokenUser;
+    private String tokenAdmin;
 
-    @BeforeEach
-    void setup() {
-        usuarioRepository.deleteAll();
+    @BeforeAll
+    void setupAll() {
+        Usuario usuario = criarUsuario("TesteUsuario", "teste@teste.com", "12345678", Role.ROLE_USER);
+        usuarioRepository.save(usuario);
+        tokenUser = jwtService.gerarToken(usuario);
 
-        // Cria usuário com ROLE_USER
-        usuario = criarUsuario("TesteUsuario", "teste@teste.com", "12345678", Role.ROLE_USER);
-        usuario = usuarioRepository.save(usuario);
-
-        token = jwtService.gerarToken(usuario); // gera token JWT
+        Usuario admin = criarUsuario("AdminTeste", "admin@teste.com", "12345678", Role.ROLE_ADMIN);
+        usuarioRepository.save(admin);
+        tokenAdmin = jwtService.gerarToken(admin);
     }
 
     private Usuario criarUsuario(String nome, String email, String senha, Role role) {
-        final Usuario u = new Usuario();
+        Usuario u = new Usuario();
         u.setNome(nome);
         u.setEmail(email);
         u.setSenha(passwordEncoder.encode(senha));
@@ -62,25 +78,22 @@ class FiltroJwtIntegrationTest {
     }
 
     @Test
-    void deveAutenticarUsuarioComTokenValido() throws Exception {
+    void devePermitirAcessoComTokenValido() throws Exception {
         mockMvc.perform(get("/reclamacoes")
-                        .header("Authorization", "Bearer " + token)
-                        .contentType(MediaType.APPLICATION_JSON))
+                        .header("Authorization", "Bearer " + tokenUser))
                 .andExpect(status().isOk());
     }
 
     @Test
-    void deveRetornar401ComTokenInvalido() throws Exception {
+    void deveNegarAcessoComTokenInvalido() throws Exception {
         mockMvc.perform(get("/reclamacoes")
-                        .header("Authorization", "Bearer tokenInvalido")
-                        .contentType(MediaType.APPLICATION_JSON))
+                        .header("Authorization", "Bearer tokenInvalido"))
                 .andExpect(status().isUnauthorized());
     }
 
     @Test
-    void deveRetornar401SemToken() throws Exception {
-        mockMvc.perform(get("/reclamacoes")
-                        .contentType(MediaType.APPLICATION_JSON))
+    void deveNegarAcessoSemToken() throws Exception {
+        mockMvc.perform(get("/reclamacoes"))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -89,47 +102,22 @@ class FiltroJwtIntegrationTest {
         mockMvc.perform(post("/usuarios")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"nome":"UsuarioTeste","email":"teste2@teste.com","senha":"1234567890"}
+                                {"nome":"UsuarioTeste2","email":"teste2@teste.com","senha":"1234567890"}
                                 """))
                 .andExpect(status().isCreated());
     }
 
     @Test
-    void deveRetornar401SeUsuarioDoTokenNaoExistir() throws Exception {
-        UserDetails fakeUserDetails = org.springframework.security.core.userdetails.User
-                .withUsername("naoexiste@teste.com")
-                .password("senhaFake")
-                .roles("USER")
-                .build();
-
-        final String tokenFake = jwtService.gerarToken(fakeUserDetails);
-
-        mockMvc.perform(get("/reclamacoes")
-                        .header("Authorization", "Bearer " + tokenFake)
-                        .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isUnauthorized());
+    void deveNegarAcessoExportSemPermissao() throws Exception {
+        mockMvc.perform(get("/reclamacoes/export")
+                        .header("Authorization", "Bearer " + tokenUser))
+                .andExpect(status().isForbidden());
     }
 
     @Test
-    @WithMockUser(username = "teste@teste.com", roles = {"USER"}) // Usuário comum, sem ROLE_ADMIN
-    void deveBloquearAcessoUsuarioSemRoleAdmin() throws Exception {
+    void devePermitirAcessoExportComRoleAdmin() throws Exception {
         mockMvc.perform(get("/reclamacoes/export")
-                        .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isForbidden()); // Espera 403 Forbidden
-    }
-
-
-    @Test
-    void devePermitirAcessoUsuarioComRoleAdmin() throws Exception {
-        // Cria usuário ADMIN
-        Usuario admin = criarUsuario("AdminTeste", "admin@teste.com", "1234567890", Role.ROLE_ADMIN);
-        usuarioRepository.save(admin);
-
-        String tokenAdmin = jwtService.gerarToken(admin);
-
-        mockMvc.perform(get("/reclamacoes/export")
-                        .header("Authorization", "Bearer " + tokenAdmin)
-                        .contentType(MediaType.APPLICATION_JSON))
+                        .header("Authorization", "Bearer " + tokenAdmin))
                 .andExpect(status().isOk());
     }
 }

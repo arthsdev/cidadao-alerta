@@ -2,8 +2,6 @@ package com.artheus.cidadaoalerta.controller;
 
 import com.artheus.cidadaoalerta.dto.*;
 import com.artheus.cidadaoalerta.model.Usuario;
-import com.artheus.cidadaoalerta.model.enums.CategoriaReclamacao;
-import com.artheus.cidadaoalerta.model.enums.StatusReclamacao;
 import com.artheus.cidadaoalerta.service.CsvService;
 import com.artheus.cidadaoalerta.service.ReclamacaoService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -19,7 +17,6 @@ import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -27,8 +24,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 @RestController
 @RequestMapping("/reclamacoes")
@@ -109,17 +104,7 @@ public class ReclamacaoController {
     @GetMapping("/export")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Exportar reclamações em CSV", description = "Exporta todas as reclamações em CSV. Apenas admins")
-    public ResponseEntity<Resource> exportarReclamacoes(
-            @RequestParam(required = false) StatusReclamacao status,
-            @RequestParam(required = false) Long usuarioId,
-            @RequestParam(required = false) CategoriaReclamacao categoria,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataInicio,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataFim
-    ) {
-        // Converte LocalDate para LocalDateTime para filtros
-        LocalDateTime inicioLdt = dataInicio != null ? dataInicio.atStartOfDay() : null;
-        LocalDateTime fimLdt = dataFim != null ? dataFim.atTime(23, 59, 59) : null;
-
-        return csvService.gerarResponseCsv(status, usuarioId, categoria, inicioLdt, fimLdt);
+    public ResponseEntity<Resource> exportarReclamacoes(FiltroReclamacaoDTO filtro) {
+        return csvService.gerarResponseCsv(filtro);
     }
 }

@@ -4,22 +4,19 @@ import com.artheus.cidadaoalerta.dto.AtualizacaoReclamacao;
 import com.artheus.cidadaoalerta.dto.CadastroReclamacao;
 import com.artheus.cidadaoalerta.dto.DetalhamentoReclamacao;
 import com.artheus.cidadaoalerta.dto.ReclamacaoPageResponse;
-import com.artheus.cidadaoalerta.exception.reclamacao.ReclamacaoAtualizacaoInvalidaException;
-import com.artheus.cidadaoalerta.exception.reclamacao.ReclamacaoDesativadaException;
-import com.artheus.cidadaoalerta.exception.reclamacao.ReclamacaoDuplicadaException;
-import com.artheus.cidadaoalerta.exception.reclamacao.ReclamacaoNaoEncontradaException;
+import com.artheus.cidadaoalerta.event.ReclamacaoEvent;
+import com.artheus.cidadaoalerta.exception.reclamacao.*;
 import com.artheus.cidadaoalerta.exception.usuario.UsuarioNaoAutenticadoException;
 import com.artheus.cidadaoalerta.exception.usuario.UsuarioSemPermissaoException;
 import com.artheus.cidadaoalerta.mapper.ReclamacaoMapper;
 import com.artheus.cidadaoalerta.model.Reclamacao;
 import com.artheus.cidadaoalerta.model.Usuario;
+import com.artheus.cidadaoalerta.model.enums.TipoEventoReclamacao;
 import com.artheus.cidadaoalerta.repository.ReclamacaoRepository;
 import com.artheus.cidadaoalerta.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.*;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -35,17 +32,23 @@ public class ReclamacaoService {
     private final ReclamacaoRepository reclamacaoRepository;
     private final UsuarioRepository usuarioRepository;
     private final ReclamacaoMapper reclamacaoMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     // ==================== MÉTODOS PÚBLICOS ====================
 
+    @Transactional
     public DetalhamentoReclamacao cadastrarReclamacao(CadastroReclamacao dto) {
         Usuario usuario = obterUsuarioLogado();
         validarReclamacaoDuplicada(dto.titulo(), usuario.getId());
 
         Reclamacao reclamacao = reclamacaoMapper.toEntity(dto, usuario);
-        return reclamacaoMapper.toDetalhamentoDto(reclamacaoRepository.save(reclamacao));
+        Reclamacao reclamacaoSalva = reclamacaoRepository.save(reclamacao);
+
+        publicarEvento(reclamacaoSalva, TipoEventoReclamacao.CRIADA);
+        return reclamacaoMapper.toDetalhamentoDto(reclamacaoSalva);
     }
 
+    @Transactional(readOnly = true)
     public ReclamacaoPageResponse<DetalhamentoReclamacao> listarReclamacoes(Pageable pageable) {
         Pageable pageableValidado = ajustarPageable(pageable);
         Page<DetalhamentoReclamacao> page = reclamacaoRepository.findByAtivoTrue(pageableValidado)
@@ -54,10 +57,7 @@ public class ReclamacaoService {
         return mapearParaResponse(page);
     }
 
-    // TODO: criar filtros por data (dataInicio e dataFim)
-    // - dataInicio: incluir registros a partir desta data (00:00:00)
-    // - dataFim: incluir registros até esta data (23:59:59)
-
+    @Transactional(readOnly = true)
     public DetalhamentoReclamacao buscarPorId(Long id) {
         return reclamacaoMapper.toDetalhamentoDto(buscarReclamacaoAtivaPorId(id));
     }
@@ -71,20 +71,25 @@ public class ReclamacaoService {
         }
 
         reclamacaoMapper.updateReclamacaoFromDto(dto, reclamacao);
-        return reclamacaoMapper.toDetalhamentoDto(reclamacao);
+        Reclamacao reclamacaoAtualizada = reclamacaoRepository.save(reclamacao);
+
+        publicarEvento(reclamacaoAtualizada, TipoEventoReclamacao.ATUALIZADA);
+        return reclamacaoMapper.toDetalhamentoDto(reclamacaoAtualizada);
     }
 
     @Transactional
     public DetalhamentoReclamacao atualizarParcialReclamacao(Long id, AtualizacaoReclamacao dto) {
         Reclamacao reclamacao = buscarReclamacaoAtivaPorId(id);
 
-        // Atualiza apenas campos não nulos
         if (dto.getTitulo() != null) reclamacao.setTitulo(dto.getTitulo());
         if (dto.getDescricao() != null) reclamacao.setDescricao(dto.getDescricao());
         if (dto.getCategoriaReclamacao() != null) reclamacao.setCategoriaReclamacao(dto.getCategoriaReclamacao());
         if (dto.getLocalizacao() != null) reclamacao.setLocalizacao(dto.getLocalizacao());
 
-        return reclamacaoMapper.toDetalhamentoDto(reclamacao);
+        Reclamacao reclamacaoAtualizada = reclamacaoRepository.save(reclamacao);
+        publicarEvento(reclamacaoAtualizada, TipoEventoReclamacao.ATUALIZADA);
+
+        return reclamacaoMapper.toDetalhamentoDto(reclamacaoAtualizada);
     }
 
     @Transactional
@@ -97,10 +102,15 @@ public class ReclamacaoService {
         }
 
         reclamacao.setAtivo(false);
-        reclamacaoRepository.save(reclamacao);
+        Reclamacao reclamacaoInativada = reclamacaoRepository.save(reclamacao);
+        publicarEvento(reclamacaoInativada, TipoEventoReclamacao.INATIVADA);
     }
 
-    // ==================== MÉTODOS PRIVADOS AUXILIARES ====================
+    // ==================== MÉTODOS PRIVADOS ====================
+
+    private void publicarEvento(Reclamacao reclamacao, TipoEventoReclamacao tipo) {
+        eventPublisher.publishEvent(new ReclamacaoEvent(reclamacao, tipo));
+    }
 
     private void validarReclamacaoDuplicada(String titulo, Long usuarioId) {
         boolean existe = reclamacaoRepository.findByTituloAndUsuarioIdAndAtivoTrue(titulo, usuarioId).isPresent();
@@ -131,8 +141,7 @@ public class ReclamacaoService {
                                 ? Sort.by(Sort.Direction.DESC, "dataCriacao")
                                 : Sort.by(list)));
 
-        int pageSize = pageable.getPageSize() <= 0 ? 10 :
-                Math.min(pageable.getPageSize(), 10);
+        int pageSize = pageable.getPageSize() <= 0 ? 10 : Math.min(pageable.getPageSize(), 10);
         int pageNumber = pageable.getPageNumber() < 0 ? 0 : pageable.getPageNumber();
 
         return PageRequest.of(pageNumber, pageSize, sortValido);
@@ -150,7 +159,4 @@ public class ReclamacaoService {
         return new ReclamacaoPageResponse<>(page.getContent(), page.getNumber(), page.getSize(),
                 page.getTotalElements(), page.getTotalPages(), page.isLast());
     }
-
-
-
 }
