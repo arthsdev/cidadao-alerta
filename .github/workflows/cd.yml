@@ -1,4 +1,4 @@
-name: CI/CD Pipeline
+name: CI/CD Pipeline Optimizado
 
 on:
   push:
@@ -11,11 +11,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout do código
+      #Checkout do código
       - name: Checkout do código
         uses: actions/checkout@v4
 
-      # Cache das dependências Maven
+      #Cache do Maven para dependências
       - name: Cache do Maven
         uses: actions/cache@v3
         with:
@@ -24,28 +24,51 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
-      # Configurar JDK 17
+      #Configura JDK 17
       - name: Configurar JDK
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
-          java-version: '17'
+          distribution: temurin
+          java-version: 17
 
-      # Build e testes do Maven
+      #Build e testes do Maven
       - name: Build e Testes
-        run: mvn clean package
+        run: mvn clean package -DskipTests=false
 
-      # Login no Docker Hub
+      #Login seguro no Docker Hub
       - name: Login no Docker Hub
-        run: echo "${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
 
-      # Build da imagem Docker
+      #Cache de Docker layers
+      - name: Cache de Docker layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: docker-${{ github.sha }}
+          restore-keys: docker-
+
+      #Build da imagem Docker (multi-stage + cache)
       - name: Build da imagem Docker
         run: |
           IMAGE_NAME=${{ secrets.DOCKER_HUB_USERNAME }}/cidadao-alerta
-          docker build -t $IMAGE_NAME:latest -t $IMAGE_NAME:${{ github.sha }} .
+          docker build \
+            --build-arg CACHEBUST=$(date +%s) \
+            --cache-from type=local,src=/tmp/.buildx-cache \
+            --cache-to type=local,dest=/tmp/.buildx-cache-new \
+            -t $IMAGE_NAME:latest \
+            -t $IMAGE_NAME:${{ github.sha }} \
+            -f Dockerfile .
 
-      # Push da imagem Docker para Docker Hub
+      #Atualiza cache de Docker layers
+      - name: Atualizar cache de Docker layers
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+      #Push da imagem Docker
       - name: Push da imagem Docker
         run: |
           IMAGE_NAME=${{ secrets.DOCKER_HUB_USERNAME }}/cidadao-alerta
