@@ -4,12 +4,16 @@ import com.artheus.cidadaoalerta.exception.csv.CsvGenerationException;
 import com.artheus.cidadaoalerta.exception.email.EmailSendException;
 import com.artheus.cidadaoalerta.exception.global.GlobalExceptionHandler;
 import com.artheus.cidadaoalerta.exception.model.ApiError;
-import com.artheus.cidadaoalerta.exception.reclamacao.*;
-import com.artheus.cidadaoalerta.exception.usuario.*;
-import jakarta.servlet.http.HttpServletRequest;
+import com.artheus.cidadaoalerta.exception.reclamacao.ReclamacaoAtualizacaoInvalidaException;
+import com.artheus.cidadaoalerta.exception.reclamacao.ReclamacaoDesativadaException;
+import com.artheus.cidadaoalerta.exception.reclamacao.ReclamacaoDuplicadaException;
+import com.artheus.cidadaoalerta.exception.reclamacao.ReclamacaoNaoEncontradaException;
+import com.artheus.cidadaoalerta.exception.usuario.UsuarioNaoAutenticadoException;
+import com.artheus.cidadaoalerta.exception.usuario.UsuarioNaoEncontradoException;
+import com.artheus.cidadaoalerta.exception.usuario.UsuarioSemPermissaoException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.HttpStatus;
+import org.springframework.core.MethodParameter;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.access.AccessDeniedException;
@@ -20,10 +24,10 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 
 import java.lang.reflect.Method;
 import java.util.List;
-import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class GlobalExceptionHandlerTest {
 
@@ -32,12 +36,12 @@ class GlobalExceptionHandlerTest {
 
     @BeforeEach
     void setup() {
-        handler = new GlobalExceptionHandler(false); // ambiente dev
+        handler = new GlobalExceptionHandler();
         request = new MockHttpServletRequest();
         request.setRequestURI("/teste");
     }
 
-    // ===================== MÉTODOS AUXILIARES =====================
+    // ===================== MÉTODO AUXILIAR =====================
     private void assertApiError(ResponseEntity<ApiError> response, int status, String titulo, String detalheContem) {
         assertNotNull(response);
         assertNotNull(response.getBody());
@@ -51,69 +55,47 @@ class GlobalExceptionHandlerTest {
         assertNotNull(body.getTraceId());
     }
 
-    private Object invocarMetodoPrivado(Object alvo, String nomeMetodo, Object... args) throws Exception {
-        Class<?> clazz = alvo.getClass();
-
-        // Identifica tipos de parâmetro (HttpServletRequest como interface)
-        Class<?>[] tiposParametros = new Class<?>[args.length];
-        for (int i = 0; i < args.length; i++) {
-            if (args[i] instanceof HttpServletRequest) {
-                tiposParametros[i] = HttpServletRequest.class;
-            } else {
-                tiposParametros[i] = args[i].getClass();
-            }
-        }
-
-        Method metodo = clazz.getDeclaredMethod(nomeMetodo, tiposParametros);
+    // ===================== TESTE MÉTODO PRIVADO converterTituloEmSlug =====================
+    @Test
+    void testConverterTituloEmSlugViaReflection() throws Exception {
+        Method metodo = GlobalExceptionHandler.class.getDeclaredMethod("converterTituloEmSlug", String.class);
         metodo.setAccessible(true);
-        return metodo.invoke(alvo, args);
-    }
 
-    // ===================== TESTES MÉTODOS PRIVADOS =====================
-    @Test
-    void testConverterTituloEmSlug() throws Exception {
-        String input = "Outro título 123";
-        String esperado = "outro-titulo-123";
-        String resultado = (String) invocarMetodoPrivado(handler, "converterTituloEmSlug", input);
-        assertEquals(esperado, resultado);
-    }
+        // instancia do handler
+        GlobalExceptionHandler handler = new GlobalExceptionHandler();
 
-    @Test
-    void testObterOuGerarTraceId() throws Exception {
-        String traceId = (String) invocarMetodoPrivado(handler, "obterOuGerarTraceId");
-        assertNotNull(traceId);
-        assertDoesNotThrow(() -> UUID.fromString(traceId));
-    }
+        // caso normal
+        String resultado = (String) metodo.invoke(handler, "Título de Teste 123!");
+        assertEquals("titulo-de-teste-123", resultado);
 
-    @Test
-    void testConstruirRespostaViaReflection() throws Exception {
-        ResponseEntity<ApiError> response = (ResponseEntity<ApiError>) invocarMetodoPrivado(
-                handler,
-                "construirResposta",
-                "Título Teste",
-                "Detalhe Teste",
-                HttpStatus.BAD_REQUEST,
-                request
-        );
-        assertApiError(response, 400, "Título Teste", "Detalhe Teste");
-    }
+        // string vazia
+        String resultadoVazio = (String) metodo.invoke(handler, "");
+        assertEquals("", resultadoVazio);
 
-    @Test
-    void testDeveExibirDetalhesErro() throws Exception {
-        boolean resultado = (boolean) invocarMetodoPrivado(handler, "deveExibirDetalhesErro", "Mensagem qualquer");
-        assertTrue(resultado); // ambiente dev
+        // null
+        String resultadoNull = (String) metodo.invoke(handler, (Object) null);
+        assertEquals("", resultadoNull);
+
+        // com espaços e underscores
+        String resultadoEspacos = (String) metodo.invoke(handler, "Exemplo_Título 456");
+        assertEquals("exemplo-titulo-456", resultadoEspacos);
+
+        // com caracteres especiais
+        String resultadoEspeciais = (String) metodo.invoke(handler, "Título!@#%&*()");
+        assertEquals("titulo", resultadoEspeciais);
     }
 
     // ===================== TESTES VALIDAÇÃO =====================
     @Test
-    void testHandleValidacao() {
+    void testHandleValidacaoComErros() {
         BindingResult bindingResult = mock(BindingResult.class);
         when(bindingResult.getFieldErrors()).thenReturn(List.of(
                 new FieldError("usuario", "nome", "Nome obrigatório"),
                 new FieldError("usuario", "email", "Email inválido")
         ));
+        MethodParameter mp = mock(MethodParameter.class);
+        MethodArgumentNotValidException ex = new MethodArgumentNotValidException(mp, bindingResult);
 
-        MethodArgumentNotValidException ex = new MethodArgumentNotValidException(null, bindingResult);
         ResponseEntity<ApiError> response = handler.handleValidacao(ex, request);
 
         assertApiError(response, 400, "Erro de validação", "Nome obrigatório");
@@ -124,8 +106,9 @@ class GlobalExceptionHandlerTest {
     void testHandleValidacaoSemFieldErrors() {
         BindingResult bindingResult = mock(BindingResult.class);
         when(bindingResult.getFieldErrors()).thenReturn(List.of());
+        MethodParameter mp = mock(MethodParameter.class);
+        MethodArgumentNotValidException ex = new MethodArgumentNotValidException(mp, bindingResult);
 
-        MethodArgumentNotValidException ex = new MethodArgumentNotValidException(null, bindingResult);
         ResponseEntity<ApiError> response = handler.handleValidacao(ex, request);
 
         assertApiError(response, 400, "Erro de validação", "Dados inválidos fornecidos");

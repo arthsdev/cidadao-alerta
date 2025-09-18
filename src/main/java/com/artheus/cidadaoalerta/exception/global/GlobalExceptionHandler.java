@@ -26,34 +26,27 @@ import java.util.stream.Collectors;
 @ControllerAdvice
 public class GlobalExceptionHandler {
 
-    private final boolean emAmbienteProducao;
-
-    // Construtor padrão assume ambiente de desenvolvimento
-    public GlobalExceptionHandler() {
-        this.emAmbienteProducao = estaEmAmbienteProducao();
-    }
-
-    // Construtor alternativo para testes
-    public GlobalExceptionHandler(boolean emAmbienteProducao) {
-        this.emAmbienteProducao = emAmbienteProducao;
-    }
-
     // ================= VALIDAÇÃO =================
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiError> handleValidacao(MethodArgumentNotValidException ex, HttpServletRequest request) {
-        List<FieldError> erros = ex.getBindingResult() != null
-                ? ex.getBindingResult().getFieldErrors()
-                : List.of();
+        // Obtém todos os erros de validação dos campos da requisição
+        List<FieldError> erros = ex.getBindingResult().getFieldErrors();
 
+        // Constrói uma string com as mensagens de erro
+        // - Filtra apenas erros não nulos e que tenham mensagem válida
+        // - Mapeia cada erro para sua mensagem
+        // - Junta todas as mensagens em uma única string separadas por "; "
         String detalhes = erros.stream()
                 .filter(e -> e != null && e.getDefaultMessage() != null)
                 .map(FieldError::getDefaultMessage)
                 .collect(Collectors.joining("; "));
 
+        // Se não houver mensagens, adiciona uma mensagem padrão
         if (detalhes.isEmpty()) {
             detalhes = "Dados inválidos fornecidos";
         }
 
+        // Retorna a resposta de erro personalizada com status 400
         return construirResposta("Erro de validação", detalhes, HttpStatus.BAD_REQUEST, request);
     }
 
@@ -130,14 +123,14 @@ public class GlobalExceptionHandler {
     }
 
     // ================= MÉTODOS AUXILIARES =================
-    private ResponseEntity<ApiError> construirResposta(String titulo, String detalhe, HttpStatus status, HttpServletRequest request) {
+    ResponseEntity<ApiError> construirResposta(String titulo, String detalhe, HttpStatus status, HttpServletRequest request) {
         String caminho = request != null ? request.getRequestURI() : "N/A";
 
         ApiError erro = ApiError.builder()
                 .type("Algo deu errado. Por favor, tente novamente mais tarde.")
                 .title(titulo)
                 .status(status.value())
-                .detail(deveExibirDetalhesErro(detalhe) ? detalhe : "Ocorreu um erro interno. Tente novamente mais tarde.")
+                .detail(detalhe)
                 .instance(caminho)
                 .traceId(obterOuGerarTraceId())
                 .timestamp(LocalDateTime.now())
@@ -165,12 +158,4 @@ public class GlobalExceptionHandler {
         return traceId;
     }
 
-    private boolean deveExibirDetalhesErro(String detalheMensagem) {
-        return !emAmbienteProducao;
-    }
-
-    private boolean estaEmAmbienteProducao() {
-        String perfil = System.getenv("SPRING_PROFILES_ACTIVE");
-        return perfil != null && perfil.equalsIgnoreCase("prod");
-    }
 }
