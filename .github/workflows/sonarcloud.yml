@@ -3,6 +3,7 @@ name: SonarCloud CI
 on:
   push:
     branches:
+      - dev
       - main
   pull_request:
 
@@ -57,7 +58,5 @@ jobs:
             -Dsonar.host.url=https://sonarcloud.io
             -Dsonar.java.binaries=target/classes
             -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
-            -Dsonar.pullrequest.key=${{ github.event.pull_request.number || '' }}
-            -Dsonar.pullrequest.branch=${{ github.head_ref || '' }}
-            -Dsonar.pullrequest.base=${{ github.base_ref || '' }}
             -Dsonar.verbose=true
+            ${{ github.event_name == 'pull_request' && format('--sonar.pullrequest.key={0} --sonar.pullrequest.branch={1} --sonar.pullrequest.base={2}', github.event.pull_request.number, github.head_ref, github.base_ref) || format('--sonar.branch.name={0}', github.ref_name) }}
