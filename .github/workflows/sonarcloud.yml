@@ -41,11 +41,11 @@ jobs:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
 
-      # Build e execução dos testes (Jacoco XML)
+      # Build e execução dos testes (gera relatório Jacoco)
       - name: Build and run tests
         run: mvn clean verify
 
-      # Análise SonarCloud
+      # Análise SonarCloud (usa o sonar-project.properties)
       - name: Run SonarCloud analysis
         uses: SonarSource/sonarcloud-github-action@v2
         env:
@@ -54,10 +54,3 @@ jobs:
           args: >
             -Dsonar.projectKey=arthsdev_cidadao-alerta
             -Dsonar.organization=arthsdev
-            -Dsonar.host.url=https://sonarcloud.io
-            -Dsonar.java.binaries=target/classes
-            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
-            -Dsonar.pullrequest.key=${{ github.event.pull_request.number || '' }}
-            -Dsonar.pullrequest.branch=${{ github.head_ref || '' }}
-            -Dsonar.pullrequest.base=${{ github.base_ref || '' }}
-            -Dsonar.verbose=true
