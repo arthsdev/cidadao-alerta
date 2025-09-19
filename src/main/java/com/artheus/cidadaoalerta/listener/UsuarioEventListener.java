@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class UsuarioEventListener {
 
+    private static final String PREFIXO_USUARIO = "O usuário '";
     private final EmailService emailService;
 
     @Async
@@ -49,11 +50,12 @@ public class UsuarioEventListener {
     }
 
     private String gerarMensagem(Usuario usuario, TipoEventoUsuario tipo) {
+        String nome = usuario.getNome();
         return switch (tipo) {
-            case CRIADO -> "O usuário '" + usuario.getNome() + "' foi registrado com sucesso.";
-            case ATUALIZADO -> "O usuário '" + usuario.getNome() + "' foi atualizado com sucesso.";
-            case INATIVADO -> "O usuário '" + usuario.getNome() + "' foi inativado.";
-            case DELETADO -> "O usuário '" + usuario.getNome() + "' foi deletado.";
+            case CRIADO -> PREFIXO_USUARIO + nome + "' foi registrado com sucesso.";
+            case ATUALIZADO -> PREFIXO_USUARIO + nome + "' foi atualizado com sucesso.";
+            case INATIVADO -> PREFIXO_USUARIO + nome + "' foi inativado.";
+            case DELETADO -> PREFIXO_USUARIO + nome + "' foi deletado.";
         };
     }
 }

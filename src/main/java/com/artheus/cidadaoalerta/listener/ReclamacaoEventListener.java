@@ -16,6 +16,7 @@ import org.springframework.transaction.event.TransactionPhase;
 @Slf4j
 public class ReclamacaoEventListener {
 
+    private static final String PREFIXO_RECLAMACAO = "A reclamação '";
     private final EmailService emailService;
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -55,11 +56,12 @@ public class ReclamacaoEventListener {
     }
 
     private String gerarMensagem(Reclamacao reclamacao, TipoEventoReclamacao tipo) {
+        String titulo = reclamacao.getTitulo();
         return switch (tipo) {
-            case CRIADA -> "A reclamação '" + reclamacao.getTitulo() + "' foi cadastrada com sucesso.";
-            case ATUALIZADA -> "A reclamação '" + reclamacao.getTitulo() + "' foi atualizada.";
-            case INATIVADA -> "A reclamação '" + reclamacao.getTitulo() + "' foi inativada.";
-            case CONCLUIDA -> "A reclamação '" + reclamacao.getTitulo() + "' foi concluída.";
+            case CRIADA -> PREFIXO_RECLAMACAO + titulo + "' foi cadastrada com sucesso.";
+            case ATUALIZADA -> PREFIXO_RECLAMACAO + titulo + "' foi atualizada.";
+            case INATIVADA -> PREFIXO_RECLAMACAO + titulo + "' foi inativada.";
+            case CONCLUIDA -> PREFIXO_RECLAMACAO + titulo + "' foi concluída.";
         };
     }
 }
