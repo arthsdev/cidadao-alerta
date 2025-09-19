@@ -17,7 +17,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0  # necessário para histórico SCM completo e cobertura de PRs
+          fetch-depth: 0  # necessário para histórico completo de branches e cobertura de PRs
 
       # Configura JDK 17
       - name: Set up JDK 17
@@ -42,22 +42,23 @@ jobs:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
 
-      # Build e execução dos testes (Jacoco XML)
+      # Build e execução dos testes (gera Jacoco XML)
       - name: Build and run tests
         run: mvn clean verify
 
-      # Análise SonarCloud usando Maven
-      - name: SonarCloud Analysis
+      # Análise SonarCloud
+      - name: Run SonarCloud analysis
+        uses: SonarSource/sonarcloud-github-action@v2
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: mvn sonar:sonar \
-          -Dsonar.projectKey=arthsdev_cidadao-alerta \
-          -Dsonar.organization=arthsdev \
-          -Dsonar.host.url=https://sonarcloud.io \
-          -Dsonar.login=${{ secrets.SONAR_TOKEN }} \
-          -Dsonar.java.binaries=target/classes \
-          -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
-          -Dsonar.verbose=true \
-          -Dsonar.pullrequest.key=${{ github.event.pull_request.number || '' }} \
-          -Dsonar.pullrequest.branch=${{ github.head_ref || github.ref_name }} \
-          -Dsonar.pullrequest.base=${{ github.base_ref || 'main' }}
+        with:
+          args: >
+            -Dsonar.projectKey=arthsdev_cidadao-alerta
+            -Dsonar.organization=arthsdev
+            -Dsonar.host.url=https://sonarcloud.io
+            -Dsonar.java.binaries=target/classes
+            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
+            -Dsonar.pullrequest.key=${{ github.event.pull_request.number || '' }}
+            -Dsonar.pullrequest.branch=${{ github.head_ref || github.ref_name || '' }}
+            -Dsonar.pullrequest.base=${{ github.base_ref || 'main' }}
+            -Dsonar.verbose=true
