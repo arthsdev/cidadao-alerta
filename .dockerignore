@@ -1,0 +1,22 @@
+# Maven
+target/
+.mvn/
+*.mvnw.cmd
+*.mvnw
+
+# IDE
+.idea/
+*.iml
+
+# Git
+.git
+.gitignore
+
+# Logs e temp
+*.log
+*.tmp
+*.swp
+.DS_Store
+
+# Configurações locais
+.env

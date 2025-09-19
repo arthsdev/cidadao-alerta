@@ -1,0 +1,53 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - dev
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout do código
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      # Cache das dependências Maven
+      - name: Cache do Maven
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      # Configurar JDK 17
+      - name: Configurar JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      # Build e testes do Maven
+      - name: Build e Testes
+        run: mvn clean package
+
+      # Login no Docker Hub
+      - name: Login no Docker Hub
+        run: echo "${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
+
+      # Build da imagem Docker
+      - name: Build da imagem Docker
+        run: |
+          IMAGE_NAME=${{ secrets.DOCKER_HUB_USERNAME }}/cidadao-alerta
+          docker build -t $IMAGE_NAME:latest -t $IMAGE_NAME:${{ github.sha }} .
+
+      # Push da imagem Docker para Docker Hub
+      - name: Push da imagem Docker
+        run: |
+          IMAGE_NAME=${{ secrets.DOCKER_HUB_USERNAME }}/cidadao-alerta
+          docker push $IMAGE_NAME:latest
+          docker push $IMAGE_NAME:${{ github.sha }}

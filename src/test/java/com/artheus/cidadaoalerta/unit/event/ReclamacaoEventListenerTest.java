@@ -67,6 +67,25 @@ class ReclamacaoEventListenerTest {
         verify(emailService).enviarEmail(eq(reclamacao.getUsuario().getEmail()), anyString(), anyString());
     }
 
+    // ---------------- Cobertura do branch de validação de e-mail ----------------
+    @Test
+    void naoDeveEnviarEmailQuandoUsuarioNaoPossuirEmail() {
+        reclamacao.setUsuario(new Usuario(1L, "Fabiano", null, "senha123", true, Role.ROLE_USER, null));
+        ReclamacaoEvent event = new ReclamacaoEvent(reclamacao, TipoEventoReclamacao.CRIADA);
+
+        assertDoesNotThrow(() -> listener.handleReclamacaoEvent(event));
+        verifyNoInteractions(emailService);
+    }
+
+    @Test
+    void naoDeveEnviarEmailQuandoUsuarioPossuirEmailEmBranco() {
+        reclamacao.setUsuario(new Usuario(1L, "Fabiano", "   ", "senha123", true, Role.ROLE_USER, null));
+        ReclamacaoEvent event = new ReclamacaoEvent(reclamacao, TipoEventoReclamacao.CRIADA);
+
+        assertDoesNotThrow(() -> listener.handleReclamacaoEvent(event));
+        verifyNoInteractions(emailService);
+    }
+
     // ---------- Testes para métodos privados usando reflexão ----------
     @Test
     void gerarAssunto_deveRetornarValorCorreto() throws Exception {
