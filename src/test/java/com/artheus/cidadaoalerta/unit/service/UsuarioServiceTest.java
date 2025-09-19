@@ -156,4 +156,36 @@ class UsuarioServiceTest {
         verify(passwordEncoder, times(1)).encode("novaSenha123");
         verify(eventPublisher, times(1)).publishEvent(any(UsuarioEvent.class));
     }
+
+    @Test
+    void deveInativarUsuarioComSucesso() {
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuario));
+        when(usuarioRepository.save(usuario)).thenReturn(usuario);
+
+        usuarioService.inativarUsuario(1L);
+
+        assertFalse(usuario.isAtivo());
+        verify(usuarioRepository).save(usuario);
+        verify(eventPublisher, times(1)).publishEvent(any(UsuarioEvent.class));
+    }
+
+    @Test
+    void deveBuscarUsuarioPorEmailComSucesso() {
+        when(usuarioRepository.findByEmail("fabiano@email.com")).thenReturn(Optional.of(usuario));
+        when(usuarioMapper.toDetalhamentoDto(usuario)).thenReturn(detalhamentoUsuario);
+
+        DetalhamentoUsuario resultado = usuarioService.buscarPorEmail("fabiano@email.com");
+
+        assertNotNull(resultado);
+        assertEquals(detalhamentoUsuario.id(), resultado.id());
+    }
+
+    @Test
+    void deveLancarExcecaoQuandoEmailNaoExistir() {
+        when(usuarioRepository.findByEmail("inexistente@email.com")).thenReturn(Optional.empty());
+
+        assertThrows(RuntimeException.class, () -> usuarioService.buscarPorEmail("inexistente@email.com"));
+    }
+
+
 }

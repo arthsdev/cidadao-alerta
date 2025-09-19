@@ -1,10 +1,18 @@
-HELP.md
+# ======================
+# Build e arquivos gerados
+# ======================
 target/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
 
-### STS ###
+# ======================
+# Arquivos de IDEs
+# ======================
+# STS
 .apt_generated
 .classpath
 .factorypath
@@ -13,21 +21,31 @@ target/
 .springBeans
 .sts4-cache
 
-### IntelliJ IDEA ###
+# IntelliJ IDEA
 .idea
 *.iws
 *.iml
 *.ipr
 
-### NetBeans ###
+# NetBeans
 /nbproject/private/
 /nbbuild/
 /dist/
 /nbdist/
-/.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
+.nb-gradle/
 
-### VS Code ###
+# VS Code
 .vscode/
+
+# ======================
+# Variáveis de ambiente
+# ======================
+.env
+.env.local
+.env.*.local
+
+# ======================
+# Logs
+# ======================
+logs/
+*.log
