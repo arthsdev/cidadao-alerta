@@ -5,6 +5,8 @@ on:
     branches:
       - main
   pull_request:
+    branches:
+      - main
 
 jobs:
   build-and-analyze:
@@ -12,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout completo do repositório
+      # Checkout do repositório
       - name: Checkout code
         uses: actions/checkout@v3
         with:
@@ -45,19 +47,18 @@ jobs:
       - name: Build and run tests
         run: mvn clean verify
 
+      # Verificar a geração do relatório de cobertura Jacoco
+      - name: Check Jacoco coverage report
+        run: |
+          ls -lh target/site/jacoco/
+          cat target/site/jacoco/jacoco.xml || echo "Jacoco report not found"
+
       # Análise SonarCloud
       - name: Run SonarCloud analysis
-        uses: SonarSource/sonarcloud-github-action@v2
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        with:
-          args: >
-            -Dsonar.projectKey=arthsdev_cidadao-alerta
-            -Dsonar.organization=arthsdev
-            -Dsonar.host.url=https://sonarcloud.io
-            -Dsonar.java.binaries=target/classes
-            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
-            -Dsonar.pullrequest.key=${{ github.event.pull_request.number || '' }}
-            -Dsonar.pullrequest.branch=${{ github.head_ref || '' }}
-            -Dsonar.pullrequest.base=${{ github.base_ref || '' }}
-            -Dsonar.verbose=true
+        run: mvn sonar:sonar \
+          -Dsonar.projectKey=arthsdev_cidadao-alerta \
+          -Dsonar.organization=arthsdev \
+          -Dsonar.host.url=https://sonarcloud.io \
+          -Dsonar.token=${{ secrets.SONAR_TOKEN }} \
+          -Dsonar.branch.name=${{ github.head_ref || 'main' }} \
+          -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
