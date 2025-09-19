@@ -26,28 +26,14 @@ import java.util.stream.Collectors;
 @ControllerAdvice
 public class GlobalExceptionHandler {
 
-    private final boolean emAmbienteProducao;
-
-    // Construtor padrão assume ambiente de desenvolvimento
-    public GlobalExceptionHandler() {
-        this.emAmbienteProducao = estaEmAmbienteProducao();
-    }
-
-    // Construtor alternativo para testes
-    public GlobalExceptionHandler(boolean emAmbienteProducao) {
-        this.emAmbienteProducao = emAmbienteProducao;
-    }
-
     // ================= VALIDAÇÃO =================
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiError> handleValidacao(MethodArgumentNotValidException ex, HttpServletRequest request) {
-        List<FieldError> erros = ex.getBindingResult() != null
-                ? ex.getBindingResult().getFieldErrors()
-                : List.of();
+        List<FieldError> erros = ex.getBindingResult().getFieldErrors();
 
         String detalhes = erros.stream()
-                .filter(e -> e != null && e.getDefaultMessage() != null)
                 .map(FieldError::getDefaultMessage)
+                .filter(msg -> msg != null && !msg.isBlank())
                 .collect(Collectors.joining("; "));
 
         if (detalhes.isEmpty()) {
@@ -137,7 +123,7 @@ public class GlobalExceptionHandler {
                 .type("Algo deu errado. Por favor, tente novamente mais tarde.")
                 .title(titulo)
                 .status(status.value())
-                .detail(deveExibirDetalhesErro(detalhe) ? detalhe : "Ocorreu um erro interno. Tente novamente mais tarde.")
+                .detail(detalhe)
                 .instance(caminho)
                 .traceId(obterOuGerarTraceId())
                 .timestamp(LocalDateTime.now())
@@ -163,14 +149,5 @@ public class GlobalExceptionHandler {
             traceId = UUID.randomUUID().toString();
         }
         return traceId;
-    }
-
-    private boolean deveExibirDetalhesErro(String detalheMensagem) {
-        return !emAmbienteProducao;
-    }
-
-    private boolean estaEmAmbienteProducao() {
-        String perfil = System.getenv("SPRING_PROFILES_ACTIVE");
-        return perfil != null && perfil.equalsIgnoreCase("prod");
     }
 }

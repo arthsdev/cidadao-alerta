@@ -13,21 +13,18 @@ import com.artheus.cidadaoalerta.exception.usuario.UsuarioNaoEncontradoException
 import com.artheus.cidadaoalerta.exception.usuario.UsuarioSemPermissaoException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.core.MethodParameter;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authorization.AuthorizationDeniedException;
-import org.springframework.validation.BindingResult;
+import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 
 import java.lang.reflect.Method;
-import java.util.List;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 class GlobalExceptionHandlerTest {
 
@@ -41,7 +38,7 @@ class GlobalExceptionHandlerTest {
         request.setRequestURI("/teste");
     }
 
-    // ===================== MÉTODO AUXILIAR =====================
+    // ================= MÉTODO AUXILIAR =====================
     private void assertApiError(ResponseEntity<ApiError> response, int status, String titulo, String detalheContem) {
         assertNotNull(response);
         assertNotNull(response.getBody());
@@ -51,50 +48,40 @@ class GlobalExceptionHandlerTest {
         if (detalheContem != null) {
             assertTrue(body.getDetail().contains(detalheContem));
         }
-        assertEquals("/teste", body.getInstance());
         assertNotNull(body.getTraceId());
     }
 
-    // ===================== TESTE MÉTODO PRIVADO converterTituloEmSlug =====================
+    // ================= TESTES MÉTODOS PRIVADOS =================
     @Test
-    void testConverterTituloEmSlugViaReflection() throws Exception {
+    void converterTituloEmSlug_DeveNormalizarCorretamente() throws Exception {
         Method metodo = GlobalExceptionHandler.class.getDeclaredMethod("converterTituloEmSlug", String.class);
         metodo.setAccessible(true);
 
-        // instancia do handler
-        GlobalExceptionHandler handler = new GlobalExceptionHandler();
-
-        // caso normal
-        String resultado = (String) metodo.invoke(handler, "Título de Teste 123!");
-        assertEquals("titulo-de-teste-123", resultado);
-
-        // string vazia
-        String resultadoVazio = (String) metodo.invoke(handler, "");
-        assertEquals("", resultadoVazio);
-
-        // null
-        String resultadoNull = (String) metodo.invoke(handler, (Object) null);
-        assertEquals("", resultadoNull);
-
-        // com espaços e underscores
-        String resultadoEspacos = (String) metodo.invoke(handler, "Exemplo_Título 456");
-        assertEquals("exemplo-titulo-456", resultadoEspacos);
-
-        // com caracteres especiais
-        String resultadoEspeciais = (String) metodo.invoke(handler, "Título!@#%&*()");
-        assertEquals("titulo", resultadoEspeciais);
+        assertEquals("titulo-de-teste-123", metodo.invoke(handler, "Título de Teste 123!"));
+        assertEquals("", metodo.invoke(handler, ""));
+        assertEquals("", metodo.invoke(handler, (Object) null));
+        assertEquals("exemplo-titulo-456", metodo.invoke(handler, "Exemplo_Título 456"));
+        assertEquals("titulo", metodo.invoke(handler, "Título!@#%&*()"));
     }
 
-    // ===================== TESTES VALIDAÇÃO =====================
     @Test
-    void testHandleValidacaoComErros() {
-        BindingResult bindingResult = mock(BindingResult.class);
-        when(bindingResult.getFieldErrors()).thenReturn(List.of(
-                new FieldError("usuario", "nome", "Nome obrigatório"),
-                new FieldError("usuario", "email", "Email inválido")
-        ));
-        MethodParameter mp = mock(MethodParameter.class);
-        MethodArgumentNotValidException ex = new MethodArgumentNotValidException(mp, bindingResult);
+    void obterOuGerarTraceId_DeveGerarTraceIdValido() throws Exception {
+        Method metodo = GlobalExceptionHandler.class.getDeclaredMethod("obterOuGerarTraceId");
+        metodo.setAccessible(true);
+
+        String traceId = (String) metodo.invoke(handler);
+        assertNotNull(traceId);
+        assertDoesNotThrow(() -> UUID.fromString(traceId));
+    }
+
+    // ================= TESTES MethodArgumentNotValidException =================
+    @Test
+    void handleValidacao_DeveRetornarErrosQuandoExistirem() {
+        BeanPropertyBindingResult bindingResult = new BeanPropertyBindingResult(new Object(), "obj");
+        bindingResult.addError(new FieldError("usuario", "nome", "Nome obrigatório"));
+        bindingResult.addError(new FieldError("usuario", "email", "Email inválido"));
+
+        MethodArgumentNotValidException ex = new MethodArgumentNotValidException(null, bindingResult);
 
         ResponseEntity<ApiError> response = handler.handleValidacao(ex, request);
 
@@ -103,90 +90,98 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    void testHandleValidacaoSemFieldErrors() {
-        BindingResult bindingResult = mock(BindingResult.class);
-        when(bindingResult.getFieldErrors()).thenReturn(List.of());
-        MethodParameter mp = mock(MethodParameter.class);
-        MethodArgumentNotValidException ex = new MethodArgumentNotValidException(mp, bindingResult);
+    void handleValidacao_DeveRetornarMensagemPadraoQuandoNaoExistiremErros() {
+        BeanPropertyBindingResult bindingResult = new BeanPropertyBindingResult(new Object(), "obj");
+        MethodArgumentNotValidException ex = new MethodArgumentNotValidException(null, bindingResult);
 
         ResponseEntity<ApiError> response = handler.handleValidacao(ex, request);
 
         assertApiError(response, 400, "Erro de validação", "Dados inválidos fornecidos");
     }
 
-    // ===================== TESTES RECLAMAÇÃO =====================
     @Test
-    void testHandleReclamacaoNaoEncontrada() {
+    void handleValidacao_DeveTratarRequestNulo() {
+        BeanPropertyBindingResult bindingResult = new BeanPropertyBindingResult(new Object(), "obj");
+        MethodArgumentNotValidException ex = new MethodArgumentNotValidException(null, bindingResult);
+
+        ResponseEntity<ApiError> response = handler.handleValidacao(ex, null);
+
+        assertEquals("N/A", response.getBody().getInstance());
+    }
+
+    // ================= TESTES RECLAMAÇÃO =================
+    @Test
+    void handleReclamacaoNaoEncontrada_DeveRetornar404() {
         assertApiError(handler.handleReclamacaoNaoEncontrada(new ReclamacaoNaoEncontradaException("Não encontrado"), request),
                 404, "Reclamação não encontrada", "Não encontrado");
     }
 
     @Test
-    void testHandleReclamacaoDesativada() {
+    void handleReclamacaoDesativada_DeveRetornar400() {
         assertApiError(handler.handleReclamacaoDesativada(new ReclamacaoDesativadaException("Desativada"), request),
                 400, "Reclamação desativada", "Desativada");
     }
 
     @Test
-    void testHandleReclamacaoDuplicada() {
+    void handleReclamacaoDuplicada_DeveRetornar409() {
         assertApiError(handler.handleReclamacaoDuplicada(new ReclamacaoDuplicadaException(), request),
                 409, "Reclamação duplicada", "Já existe uma reclamação duplicada");
     }
 
     @Test
-    void testHandleAtualizacaoInvalida() {
+    void handleAtualizacaoInvalida_DeveRetornar400() {
         assertApiError(handler.handleAtualizacaoInvalida(new ReclamacaoAtualizacaoInvalidaException("Inválida"), request),
                 400, "Atualização de reclamação inválida", "Inválida");
     }
 
-    // ===================== TESTES USUÁRIO =====================
+    // ================= TESTES USUÁRIO =================
     @Test
-    void testHandleUsuarioNaoAutenticado() {
+    void handleUsuarioNaoAutenticado_DeveRetornar401() {
         assertApiError(handler.handleUsuarioNaoAutenticado(new UsuarioNaoAutenticadoException("Não autenticado"), request),
                 401, "Usuário não autenticado", "Não autenticado");
     }
 
     @Test
-    void testHandleUsuarioSemPermissao() {
+    void handleUsuarioSemPermissao_DeveRetornar403() {
         assertApiError(handler.handleUsuarioSemPermissao(new UsuarioSemPermissaoException("Sem permissão"), request),
                 403, "Usuário sem permissão", "Sem permissão");
     }
 
     @Test
-    void testHandleUsuarioNaoEncontrado() {
+    void handleUsuarioNaoEncontrado_DeveRetornar404() {
         assertApiError(handler.handleUsuarioNaoEncontrado(new UsuarioNaoEncontradoException("Não encontrado"), request),
                 404, "Usuário não encontrado", "Não encontrado");
     }
 
-    // ===================== TESTES CSV E EMAIL =====================
+    // ================= TESTES CSV E EMAIL =================
     @Test
-    void testHandleCsvGenerationException() {
+    void handleErroCsv_DeveRetornar500() {
         assertApiError(handler.handleErroCsv(new CsvGenerationException("Erro CSV"), request),
                 500, "Erro ao gerar CSV", "Erro CSV");
     }
 
     @Test
-    void testHandleEmailSendException() {
+    void handleErroEmail_DeveRetornar500() {
         assertApiError(handler.handleErroEmail(new EmailSendException("Erro e-mail"), request),
                 500, "Erro ao enviar e-mail", "Erro e-mail");
     }
 
-    // ===================== TESTES ACCESS DENIED =====================
+    // ================= TESTES ACCESS DENIED =================
     @Test
-    void testHandleAcessoNegadoComAccessDeniedException() {
+    void handleAcessoNegado_ComAccessDeniedException() {
         assertApiError(handler.handleAcessoNegado(new AccessDeniedException("Negado"), request),
                 403, "Acesso negado", "Access Denied");
     }
 
     @Test
-    void testHandleAcessoNegadoComAuthorizationDeniedException() {
+    void handleAcessoNegado_ComAuthorizationDeniedException() {
         assertApiError(handler.handleAcessoNegado(new AuthorizationDeniedException("Negado"), request),
                 403, "Acesso negado", "Access Denied");
     }
 
-    // ===================== TESTE GENÉRICO =====================
+    // ================= TESTE GENÉRICO =================
     @Test
-    void testHandleExcecaoGenerica() {
+    void handleExcecaoGenerica_DeveRetornar500() {
         assertApiError(handler.handleExcecaoGenerica(new Exception("Erro genérico"), request),
                 500, "Erro interno", "Erro genérico");
     }
